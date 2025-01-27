@@ -1,0 +1,159 @@
+/* Stats Cards */
+.stats-card {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    z-index: -1;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.stats-card-1 { background-image: var(--primary-gradient); }
+.stats-card-2 { background-image: var(--secondary-gradient); }
+.stats-card-3 { background-image: var(--warning-gradient); }
+.stats-card-4 { background-image: var(--success-gradient); }
+
+/* Upload Zone */
+.upload-zone {
+    border: 2px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+}
+
+.upload-zone:hover {
+    border-color: #4facfe;
+    background: rgba(79, 172, 254, 0.05);
+}
+
+/* Charts */
+.chart-container {
+    min-height: 400px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.large-chart {
+    min-height: 500px;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    position: relative;
+    overflow: hidden;
+}
+
+.dashboard-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 2px;
+    background: var(--primary-gradient);
+}
+
+/* Action Menu */
+.action-menu .btn {
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--primary-gradient);
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.action-menu .btn:hover {
+    transform: scale(1.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .stats-card {
+        padding: 1rem;
+    }
+    
+    .stats-card p {
+        font-size: 1.5rem;
+    }
+    
+    .chart-container {
+        min-height: 300px;
+    }
+    
+    .large-chart {
+        min-height: 400px;
+    }
+}
+/* Botón de procesar */
+.process-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    border: none;
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.process-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+}
+
+.process-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(79, 172, 254, 0.4);
+}
+
+/* Mejora de la zona de upload */
+.upload-zone {
+    border: 2px dashed rgba(79, 172, 254, 0.3);
+    border-radius: 16px;
+    padding: 2.5rem;
+    background: rgba(79, 172, 254, 0.05);
+    transition: all 0.3s ease;
+}
+
+.upload-zone:hover {
+    border-color: #4facfe;
+    background: rgba(79, 172, 254, 0.1);
+}
+
+/* Estado de arrastrar archivo */
+.upload-zone.dragover {
+    border-color: #4facfe;
+    background: rgba(79, 172, 254, 0.15);
+    transform: scale(1.02);
+}

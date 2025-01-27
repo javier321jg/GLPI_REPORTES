@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard GLPI 3.0</title>
+    
+    <!-- CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/styles.css" rel="stylesheet">
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+    
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.15/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+
+    <style>
+        /* Animaciones y estilos nuevos */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes scaleIn {
+            from { transform: scale(0.9); }
+            to { transform: scale(1); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .animate-scaleIn {
+            animation: scaleIn 0.3s ease-out;
+        }
+        
+        /* Estilos para filtros */
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            background: rgba(76, 174, 254, 0.2);
+            border-radius: 9999px;
+            margin: 0.25rem;
+            transition: all 0.3s;
+        }
+        
+        .filter-tag:hover {
+            background: rgba(76, 174, 254, 0.3);
+        }
+        
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            background: rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .filter-button:hover {
+            background: rgba(76, 174, 254, 0.2);
+        }
+        
+        .filter-button.active {
+            background: rgba(76, 174, 254, 0.4);
+        }
+
+        /* Mejoras visuales */
+        .stats-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            padding: 2rem;
+            border-radius: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #4caefe;
+            background: rgba(76, 174, 254, 0.1);
+        }
+
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="container mx-auto max-w-7xl">
+        <!-- Header -->
+        <div class="glass p-8 mb-8 text-center">
+            <h1 class="text-4xl font-bold mb-4 flex items-center justify-center gap-4">
+                <i class="fas fa-chart-line text-blue-400"></i>
+                Dashboard GLPI 3.0
+            </h1>
+            <p class="text-xl opacity-80">Sistema Avanzado de Gestión de Tickets</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="glass p-6 mb-8">
+            <form id="uploadForm" class="max-w-xl mx-auto">
+                <div class="upload-zone text-center cursor-pointer">
+                    <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-400"></i>
+                    <input type="file" accept=".csv" name="file" required class="hidden" id="fileInput">
+                    <label for="fileInput" class="block">
+                        <span class="text-lg font-semibold">Arrastra tu archivo CSV aquí o haz click para seleccionar</span>
+                        <p class="text-sm opacity-70 mt-2">Formato soportado: CSV</p>
+                    </label>
+                </div>
+            </form>
+        </div>
+
+        <!-- Filters Section -->
+        <div id="filtersSection" class="glass p-6 mb-8 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">
+                    <i class="fas fa-filter mr-2"></i>
+                    Filtros
+                </h2>
+                <button onclick="clearAllFilters()" class="btn bg-red-500/20 hover:bg-red-500/30">
+                    <i class="fas fa-times mr-2"></i>
+                    Limpiar Filtros
+                </button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="filterGroups">
+                <!-- Filter groups will be added here dynamically -->
+            </div>
+            <div id="activeFilters" class="mt-4 flex flex-wrap gap-2">
+                <!-- Active filter tags will be added here -->
+            </div>
+        </div>
+
+        <div id="dashboardContent" class="hidden">
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="stats-card stats-card-1 p-6 rounded-xl" data-type="total">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-ticket-alt text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Total Tickets</h3>
+                    <p id="totalTickets" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="stats-card stats-card-2 p-6 rounded-xl" data-type="technicians">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-users-cog text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Total Técnicos</h3>
+                    <p id="totalTecnicos" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="stats-card stats-card-3 p-6 rounded-xl" data-type="pending">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-clock text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Tickets Pendientes</h3>
+                    <p id="ticketsPendientes" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="stats-card stats-card-4 p-6 rounded-xl" data-type="efficiency">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-chart-pie text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Eficiencia</h3>
+                    <p id="eficiencia" class="text-4xl font-bold">0%</p>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Categories Chart -->
+                <div class="glass p-6 md:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold">
+                            <i class="fas fa-tags mr-2"></i>
+                            Distribución por Categoría
+                        </h3>
+                        <div class="space-x-2">
+                            <button onclick="charts.categorias.toggleDataLabels()" class="btn">
+                                <i class="fas fa-tags"></i>
+                                Etiquetas
+                            </button>
+                            <button onclick="exportChart('categoriasChart')" class="btn">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="categoriasChart" class="chart-container large-chart"></div>
+                </div>
+
+                <!-- Status Chart -->
+                <div class="glass p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">
+                            <i class="fas fa-chart-pie mr-2"></i>
+                            Estados de Tickets
+                        </h3>
+                        <div class="space-x-2">
+                            <button onclick="charts.estados.toggleDataLabels()" class="btn">
+                                <i class="fas fa-tags"></i>
+                                Etiquetas
+                            </button>
+                            <button onclick="exportChart('estadosChart')" class="btn">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="estadosChart" class="chart-container"></div>
+                </div>
+
+                <!-- Monthly Trend Chart -->
+                <div class="glass p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            Tendencia Mensual
+                        </h3>
+                        <div class="space-x-2">
+                            <button onclick="charts.tendencia.toggleDataLabels()" class="btn">
+                                <i class="fas fa-tags"></i>
+                                Etiquetas
+                            </button>
+                            <button onclick="exportChart('tendenciaChart')" class="btn">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="tendenciaChart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Technician Table -->
+            <div class="glass p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">
+                        <i class="fas fa-users-cog mr-2"></i>
+                        Tickets por Técnico
+                    </h2>
+                    <div class="space-x-4">
+                        <button onclick="exportTableToCSV()" class="btn">
+                            <i class="fas fa-file-csv"></i>
+                            CSV
+                        </button>
+                        <button onclick="exportTableToPDF()" class="btn">
+                            <i class="fas fa-file-pdf"></i>
+                            PDF
+                        </button>
+                        <button onclick="exportTableToJPG()" class="btn">
+                            <i class="fas fa-image"></i>
+                            JPG
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="technicianTable">
+                        <thead>
+                            <tr>
+                                <th>Técnico</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr class="font-bold">
+                                <td>Total General</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading hidden">
+        <div class="text-center">
+            <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4 pulse"></i>
+            <p class="text-xl">Procesando datos...</p>
+        </div>
+    </div>
+
+    <!-- Action Menu -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-4">
+        <button onclick="reloadData()" class="btn bg-blue-500 hover:bg-blue-600" title="Recargar Datos">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        <button onclick="clearData()" class="btn bg-red-500 hover:bg-red-600" title="Limpiar Datos">
+            <i class="fas fa-trash-alt"></i>
+        </button>
+        <button onclick="exportAllCharts()" class="btn bg-green-500 hover:bg-green-600" title="Exportar Todo">
+            <i class="fas fa-download"></i>
+        </button>
+    </div>
+    <script>
+        // Variables globales
+        let dashboardData = null;
+        let charts = {};
+        let activeFilters = {
+            category: [],
+            status: [],
+            month: [],
+            technician: []
+        };
+    
+        // Funciones de utilidad
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+    
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+    
+        // Configuración mejorada de Highcharts
+        Highcharts.setOptions({
+            chart: {
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                },
+                style: {
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                },
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                borderRadius: 20,
+                plotBorderWidth: 0
+            },
+            colors: ['#4caefe', '#3dc3e8', '#2dd9db', '#1feeaf', '#0ff3a0', '#00e887'],
+            title: {
+                style: {
+                    color: '#ffffff',
+                    fontWeight: 'bold'
+                }
+            },
+            legend: {
+                itemStyle: {
+                    color: '#ffffff'
+                },
+                itemHoverStyle: {
+                    color: '#4caefe'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                style: {
+                    color: '#ffffff'
+                },
+                animation: true
+            }
+        });
+    
+        // Procesamiento de CSV
+        function processCSVData(file) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        if (results.errors.length > 0) {
+                            reject(results.errors);
+                            return;
+                        }
+    
+                        const data = results.data;
+                        const processedData = {
+                            dashboard_stats: {
+                                total_tickets: data.length,
+                                tickets_por_categoria: {},
+                                tickets_por_estado: {},
+                                tendencia_mensual: {},
+                                total_tecnicos: new Set()
+                            },
+                            technician_stats: []
+                        };
+    
+                        // Procesar datos
+                        data.forEach(row => {
+                            // Contar por categoría
+                            if (row.Categoria) {
+                                processedData.dashboard_stats.tickets_por_categoria[row.Categoria] = 
+                                    (processedData.dashboard_stats.tickets_por_categoria[row.Categoria] || 0) + 1;
+                            }
+    
+                            // Contar por estado
+                            if (row.Estado) {
+                                processedData.dashboard_stats.tickets_por_estado[row.Estado] = 
+                                    (processedData.dashboard_stats.tickets_por_estado[row.Estado] || 0) + 1;
+                            }
+    
+                            // Contar por mes
+                            if (row.Fecha) {
+                                const fecha = new Date(row.Fecha);
+                                const mes = fecha.toLocaleString('es-ES', { month: 'long' });
+                                processedData.dashboard_stats.tendencia_mensual[mes] = 
+                                    (processedData.dashboard_stats.tendencia_mensual[mes] || 0) + 1;
+                            }
+    
+                            // Registrar técnicos
+                            if (row.Tecnico) {
+                                processedData.dashboard_stats.total_tecnicos.add(row.Tecnico);
+                            }
+                        });
+    
+                        // Procesar estadísticas por técnico
+                        const technicianData = {};
+                        data.forEach(row => {
+                            if (!row.Tecnico) return;
+                            
+                            if (!technicianData[row.Tecnico]) {
+                                technicianData[row.Tecnico] = {
+                                    'Técnico': row.Tecnico
+                                };
+                            }
+    
+                            if (row.Fecha) {
+                                const fecha = new Date(row.Fecha);
+                                const mes = fecha.toLocaleString('es-ES', { month: 'long' });
+                                technicianData[row.Tecnico][mes] = 
+                                    (technicianData[row.Tecnico][mes] || 0) + 1;
+                            }
+                        });
+    
+                        processedData.technician_stats = Object.values(technicianData);
+                        processedData.dashboard_stats.total_tecnicos = 
+                            processedData.dashboard_stats.total_tecnicos.size;
+    
+                        resolve(processedData);
+                    },
+                    error: function(error) {
+                        reject(error);
+                    }
+                });
+            });
+        }
+    
+        // Sistema de filtros
+        function initializeFilters(data) {
+            const filterGroups = document.getElementById('filterGroups');
+            filterGroups.innerHTML = '';
+            document.getElementById('filtersSection').classList.remove('hidden');
+    
+            const filterTypes = {
+                category: {
+                    title: 'Categorías',
+                    icon: 'fas fa-tags',
+                    data: Object.keys(data.dashboard_stats.tickets_por_categoria)
+                },
+                status: {
+                    title: 'Estados',
+                    icon: 'fas fa-tasks',
+                    data: Object.keys(data.dashboard_stats.tickets_por_estado)
+                },
+                month: {
+                    title: 'Meses',
+                    icon: 'fas fa-calendar',
+                    data: Object.keys(data.dashboard_stats.tendencia_mensual)
+                },
+                technician: {
+                    title: 'Técnicos',
+                    icon: 'fas fa-user-cog',
+                    data: data.technician_stats.map(tech => tech['Técnico'])
+                }
+            };
+    
+            Object.entries(filterTypes).forEach(([type, config]) => {
+                const filterGroup = document.createElement('div');
+                filterGroup.className = 'filter-group bg-white/5 p-4 rounded-xl';
+                filterGroup.innerHTML = `
+                    <h4 class="text-lg font-semibold mb-3">
+                        <i class="${config.icon} mr-2"></i>
+                        ${config.title}
+                    </h4>
+                    <div class="filter-chips-container flex flex-wrap gap-2">
+                        ${config.data.map(value => `
+                            <button 
+                                class="filter-button" 
+                                data-type="${type}" 
+                                data-value="${value}"
+                                onclick="toggleFilter('${type}', '${value}', this)">
+                                ${value}
+                            </button>
+                        `).join('')}
+                    </div>
+                `;
+                filterGroups.appendChild(filterGroup);
+            });
+        }
+    
+        function toggleFilter(type, value, button) {
+            if (!button.classList.contains('active')) {
+                button.classList.add('active');
+                activeFilters[type].push(value);
+            } else {
+                button.classList.remove('active');
+                activeFilters[type] = activeFilters[type].filter(v => v !== value);
+            }
+            
+            updateActiveFilters();
+            applyFilters();
+        }
+    
+        function updateActiveFilters() {
+            const container = document.getElementById('activeFilters');
+            container.innerHTML = '';
+    
+            Object.entries(activeFilters).forEach(([type, values]) => {
+                values.forEach(value => {
+                    const tag = document.createElement('div');
+                    tag.className = 'filter-tag animate-fadeIn';
+                    tag.innerHTML = `
+                        <span>${value}</span>
+                        <button onclick="removeFilter('${type}', '${value}')" class="hover:bg-red-500/20 p-1 rounded-full">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    container.appendChild(tag);
+                });
+            });
+        }
+    
+        function removeFilter(type, value) {
+            const button = document.querySelector(`[data-type="${type}"][data-value="${value}"]`);
+            if (button) {
+                button.classList.remove('active');
+            }
+            activeFilters[type] = activeFilters[type].filter(v => v !== value);
+            updateActiveFilters();
+            applyFilters();
+        }
+    
+        function clearAllFilters() {
+            activeFilters = {
+                category: [],
+                status: [],
+                month: [],
+                technician: []
+            };
+            
+            document.querySelectorAll('.filter-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            updateActiveFilters();
+            applyFilters();
+        }
+    
+        function applyFilters() {
+            if (!dashboardData) return;
+    
+            let filteredData = {
+                dashboard_stats: {...dashboardData.dashboard_stats},
+                technician_stats: [...dashboardData.technician_stats]
+            };
+    
+            // Aplicar filtros
+            if (activeFilters.category.length > 0) {
+                filteredData.dashboard_stats.tickets_por_categoria = Object.fromEntries(
+                    Object.entries(filteredData.dashboard_stats.tickets_por_categoria)
+                        .filter(([cat]) => activeFilters.category.includes(cat))
+                );
+            }
+    
+            if (activeFilters.status.length > 0) {
+                filteredData.dashboard_stats.tickets_por_estado = Object.fromEntries(
+                    Object.entries(filteredData.dashboard_stats.tickets_por_estado)
+                        .filter(([status]) => activeFilters.status.includes(status))
+                );
+            }
+    
+            if (activeFilters.month.length > 0) {
+                filteredData.dashboard_stats.tendencia_mensual = Object.fromEntries(
+                    Object.entries(filteredData.dashboard_stats.tendencia_mensual)
+                        .filter(([month]) => activeFilters.month.includes(month))
+                );
+            }
+    
+            if (activeFilters.technician.length > 0) {
+                filteredData.technician_stats = filteredData.technician_stats
+                    .filter(tech => activeFilters.technician.includes(tech['Técnico']));
+            }
+    
+            updateDashboardWithAnimation(filteredData);
+        }
+    
+        // Continúa...
+        // Funciones de actualización del dashboard
+    function updateDashboardWithAnimation(data) {
+        document.getElementById('dashboardContent').classList.remove('hidden');
+        
+        // Actualizar estadísticas con animación
+        animateValue('totalTickets', calculateTotalTickets(data.dashboard_stats));
+        animateValue('totalTecnicos', data.technician_stats.length);
+        animateValue('ticketsPendientes', data.dashboard_stats.tickets_por_estado['Pendiente'] || 0);
+        
+        const efficiency = calculateEfficiency(data.dashboard_stats.tickets_por_estado);
+        animateValue('eficiencia', efficiency, true);
+
+        // Actualizar gráficos con animaciones
+        updateChartsWithAnimation(data);
+        
+        // Actualizar tabla de técnicos
+        updateTechnicianTableWithAnimation(data.technician_stats);
+    }
+
+    function calculateTotalTickets(stats) {
+        return Object.values(stats.tickets_por_categoria).reduce((sum, count) => sum + count, 0);
+    }
+
+    function calculateEfficiency(estados) {
+        const resueltos = estados['Resuelto'] || 0;
+        const total = Object.values(estados).reduce((sum, count) => sum + count, 0);
+        return total > 0 ? (resueltos / total) * 100 : 0;
+    }
+
+    // Función para animar valores con easing
+    function animateValue(elementId, endValue, isPercentage = false) {
+        const element = document.getElementById(elementId);
+        const startValue = parseFloat(element.textContent.replace(/[^0-9.-]+/g, '')) || 0;
+        const duration = 1500;
+        const frames = 60;
+        const step = (endValue - startValue) / frames;
+
+        let currentValue = startValue;
+        let currentFrame = 0;
+
+        function easeOutQuart(x) {
+            return 1 - Math.pow(1 - x, 4);
+        }
+
+        function animate() {
+            currentFrame++;
+            const progress = currentFrame / frames;
+            const easedProgress = easeOutQuart(progress);
+            currentValue = startValue + (endValue - startValue) * easedProgress;
+
+            element.textContent = isPercentage ? 
+                `${currentValue.toFixed(1)}%` : 
+                Math.round(currentValue).toLocaleString();
+
+            if (currentFrame < frames) {
+                requestAnimationFrame(animate);
+            }
+        }
+
+        animate();
+    }
+
+    // Función para actualizar gráficos con animaciones
+    function updateChartsWithAnimation(data) {
+        // Gráfico de categorías
+        charts.categorias = initializeCategoryChart(data.dashboard_stats.tickets_por_categoria);
+        
+        // Gráfico de estados
+        charts.estados = initializeStatusChart(data.dashboard_stats.tickets_por_estado);
+        
+        // Gráfico de tendencia
+        charts.tendencia = initializeTrendChart(data.dashboard_stats.tendencia_mensual);
+
+        // Añadir interactividad a los gráficos
+        addChartInteractivity();
+    }
+
+    function addChartInteractivity() {
+        // Añadir click handlers para los puntos de los gráficos
+        Object.values(charts).forEach(chart => {
+            if (!chart) return;
+            
+            chart.series[0].points.forEach(point => {
+                point.events = {
+                    click: function() {
+                        handleChartPointClick(this);
+                    }
+                };
+            });
+        });
+    }
+
+    function handleChartPointClick(point) {
+        const chartId = point.series.chart.renderTo.id;
+        let filterType;
+        let value = point.name || point.category;
+
+        switch(chartId) {
+            case 'categoriasChart':
+                filterType = 'category';
+                break;
+            case 'estadosChart':
+                filterType = 'status';
+                break;
+            case 'tendenciaChart':
+                filterType = 'month';
+                break;
+        }
+
+        if (filterType && value) {
+            const button = document.querySelector(`[data-type="${filterType}"][data-value="${value}"]`);
+            if (button) {
+                toggleFilter(filterType, value, button);
+            }
+        }
+    }
+
+    // Función para actualizar la tabla de técnicos con animación
+    function updateTechnicianTableWithAnimation(techData) {
+        const table = document.getElementById('technicianTable');
+        const tbody = table.querySelector('tbody');
+        const tfoot = table.querySelector('tfoot tr');
+
+        // Obtener meses activos
+        const activeMonths = new Set();
+        techData.forEach(tech => {
+            Object.keys(tech).forEach(key => {
+                if (key !== 'Técnico' && tech[key] > 0) {
+                    activeMonths.add(key);
+                }
+            });
+        });
+
+        // Actualizar encabezados
+        const thead = table.querySelector('thead tr');
+        thead.innerHTML = '<th class="text-left">Técnico</th>';
+        Array.from(activeMonths).sort().forEach(month => {
+            thead.innerHTML += `<th class="text-center">${month}</th>`;
+        });
+        thead.innerHTML += '<th class="text-right">Total</th>';
+
+        // Actualizar filas con animación
+        tbody.innerHTML = '';
+        const monthTotals = {};
+        let grandTotal = 0;
+
+        techData.forEach((tech, index) => {
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-white/5 cursor-pointer animate-fadeIn';
+            row.style.animationDelay = `${index * 50}ms`;
+
+            let technicianTotal = 0;
+            row.innerHTML = `<td class="font-semibold">
+                <i class="fas fa-user mr-2"></i>${tech['Técnico']}
+            </td>`;
+
+            Array.from(activeMonths).sort().forEach(month => {
+                const tickets = tech[month] || 0;
+                technicianTotal += tickets;
+                monthTotals[month] = (monthTotals[month] || 0) + tickets;
+
+                row.innerHTML += `
+                    <td class="text-center ${tickets > 0 ? 'bg-blue-500/10' : ''}">
+                        ${tickets}
+                    </td>`;
+            });
+
+            grandTotal += technicianTotal;
+            row.innerHTML += `<td class="text-right font-bold text-blue-400">${technicianTotal}</td>`;
+
+            // Añadir evento click para filtrar por técnico
+            row.addEventListener('click', () => {
+                const button = document.querySelector(`[data-type="technician"][data-value="${tech['Técnico']}"]`);
+                if (button) {
+                    toggleFilter('technician', tech['Técnico'], button);
+                }
+            });
+
+            tbody.appendChild(row);
+        });
+
+        // Actualizar footer
+        tfoot.innerHTML = '<td class="font-bold text-xl">Total General</td>';
+        Array.from(activeMonths).sort().forEach(month => {
+            tfoot.innerHTML += `<td class="text-center font-bold text-xl">${monthTotals[month] || 0}</td>`;
+        });
+        tfoot.innerHTML += `<td class="text-right font-bold text-xl text-blue-400">${grandTotal}</td>`;
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar datos guardados si existen
+        const savedData = sessionStorage.getItem('dashboardData');
+        if (savedData) {
+            dashboardData = JSON.parse(savedData);
+            initializeFilters(dashboardData);
+            updateDashboardWithAnimation(dashboardData);
+        }
+
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadZone = document.querySelector('.upload-zone');
+        const fileInput = document.getElementById('fileInput');
+
+        // Event listener para el formulario
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            showLoading();
+            try {
+                dashboardData = await processCSVData(file);
+                sessionStorage.setItem('dashboardData', JSON.stringify(dashboardData));
+                
+                initializeFilters(dashboardData);
+                updateDashboardWithAnimation(dashboardData);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al procesar el archivo: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // Drag and drop handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            uploadZone.classList.remove('dragover');
+        }
+
+        uploadZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+
+            if (files.length > 0) {
+                uploadForm.dispatchEvent(new Event('submit'));
+            }
+        }
+
+        fileInput.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                uploadForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    });
+
+    // Funciones de exportación
+    function exportChart(chartId) {
+        const chart = Highcharts.charts.find(chart => chart && chart.renderTo.id === chartId);
+        if (chart) {
+            chart.exportChart({
+                type: 'image/jpeg',
+                filename: `chart-${chartId}`
+            });
+        }
+    }
+
+    function exportAllCharts() {
+        Object.entries(charts).forEach(([key, chart]) => {
+            if (chart) {
+                chart.exportChart({
+                    type: 'image/jpeg',
+                    filename: `chart-${key}`
+                });
+            }
+        });
+    }
+
+    function exportTableToCSV() {
+        if (!dashboardData) return;
+
+        const rows = [['Técnico']];
+        const table = document.getElementById('technicianTable');
+        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+        rows[0].push(...headers.slice(1));
+
+        dashboardData.technician_stats.forEach(tech => {
+            const row = [tech['Técnico']];
+            headers.slice(1, -1).forEach(month => {
+                row.push(tech[month] || 0);
+            });
+            const total = row.slice(1).reduce((a, b) => a + b, 0);
+            row.push(total);
+            rows.push(row);
+        });
+
+        const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "tickets_por_tecnico.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    async function exportTableToJPG() {
+        const tableContainer = document.querySelector('.table-container');
+        try {
+            const canvas = await html2canvas(tableContainer, {
+                scale: 2,
+                backgroundColor: '#1a1a1a',
+                logging: false,
+                useCORS: true,
+                allowTaint: true
+            });
+            
+            const link = document.createElement('a');
+            link.download = 'tickets_por_tecnico.jpg';
+            link.href = canvas.toDataURL('image/jpeg', 1.0);
+            link.click();
+        } catch (error) {
+            console.error('Error al exportar como JPG:', error);
+            alert('Error al exportar la imagen. Por favor, intente nuevamente.');
+        }
+    }
+
+    function exportTableToPDF() {
+        if (!dashboardData) return;
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        const table = document.getElementById('technicianTable');
+        const headers = Array.from(table.querySelectorAll('thead th'))
+            .map(th => th.textContent.trim());
+
+        const rows = dashboardData.technician_stats.map(tech => {
+            const row = [tech['Técnico']];
+            headers.slice(1, -1).forEach(month => {
+                row.push(tech[month] || 0);
+            });
+            const total = row.slice(1).reduce((a, b) => a + b, 0);
+            row.push(total);
+            return row;
+        });
+
+        doc.autoTable({
+            head: [headers],
+            body: rows,
+            theme: 'grid',
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+            },
+            headStyles: {
+                fillColor: [76, 174, 254],
+                textColor: 255
+            },
+            alternateRowStyles: {
+                fillColor: [245, 245, 245]
+            }
+        });
+
+        doc.save('tickets_por_tecnico.pdf');
+    }
+    </script>
+</body>
+</html>

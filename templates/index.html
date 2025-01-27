@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard GLPI 3.0</title>
+    
+    <!-- CSS -->
+     <!-- CSS -->
+     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+     <style>
+         :root {
+             --gradient-1: linear-gradient(135deg, #FF5733, #FF8D1A);
+             --gradient-2: linear-gradient(135deg, #FFC300, #FFD700);
+             --gradient-3: linear-gradient(135deg, #28A745, #5CE67D);
+             --gradient-4: linear-gradient(135deg, #17A2B8, #58D3F7);
+         }
+ 
+         body {
+             background: #121212;
+             min-height: 100vh;
+             color: white;
+             font-family: 'Inter', system-ui, sans-serif;
+         }
+ 
+         .glass {
+             background: rgba(255, 255, 255, 0.07);
+             backdrop-filter: blur(10px);
+             border: 1px solid rgba(255, 255, 255, 0.15);
+             border-radius: 20px;
+             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+             transition: all 0.3s ease;
+         }
+ 
+         .glass:hover {
+             transform: translateY(-2px);
+             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+         }
+ 
+         .stats-card {
+             color: white;
+             transition: all 0.3s ease;
+             cursor: pointer;
+         }
+ 
+         .stats-card:hover {
+             transform: translateY(-5px);
+         }
+ 
+         .stats-card-1 { background: var(--gradient-1); }
+         .stats-card-2 { background: var(--gradient-2); }
+         .stats-card-3 { background: var(--gradient-3); }
+         .stats-card-4 { background: var(--gradient-4); }
+ 
+         .btn {
+             padding: 0.75rem 1.5rem;
+             border-radius: 12px;
+             transition: all 0.3s ease;
+             display: inline-flex;
+             align-items: center;
+             gap: 0.5rem;
+             background: rgba(255, 255, 255, 0.2);
+             border: 1px solid rgba(255, 255, 255, 0.3);
+             color: white;
+             cursor: pointer;
+             font-size: 0.875rem;
+         }
+ 
+         .btn:hover {
+             background: rgba(255, 255, 255, 0.3);
+             transform: translateY(-2px);
+         }
+ 
+         .chart-container {
+             min-height: 400px;
+             margin: 1rem 0;
+         }
+ 
+         .large-chart {
+             min-height: 500px;
+         }
+ 
+         .table-container {
+             overflow-x: auto;
+             background: rgba(255, 255, 255, 0.03);
+             border-radius: 15px;
+             padding: 1rem;
+         }
+ 
+         table {
+             width: 100%;
+             border-collapse: separate;
+             border-spacing: 0;
+         }
+ 
+         th, td {
+             padding: 1rem;
+             text-align: left;
+         }
+ 
+         th {
+             background: rgba(255, 183, 77, 0.2);
+             font-weight: 600;
+             color: white;
+             border-bottom: 2px solid rgba(255, 183, 77, 0.4);
+         }
+ 
+         td {
+             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+         }
+ 
+         tbody tr:hover {
+             background: rgba(255, 183, 77, 0.1);
+             cursor: pointer;
+         }
+ 
+         .loading {
+             position: fixed;
+             inset: 0;
+             background: rgba(0, 0, 0, 0.9);
+             backdrop-filter: blur(8px);
+             display: flex;
+             justify-content: center;
+             align-items: center;
+             z-index: 50;
+         }
+ 
+         @keyframes pulse {
+             0% { transform: scale(1); }
+             50% { transform: scale(1.1); }
+             100% { transform: scale(1); }
+         }
+ 
+         .pulse {
+             animation: pulse 2s infinite;
+         }
+     </style>
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+    <script src="https://code.highcharts.com/modules/sankey.js"></script>
+    <script src="https://code.highcharts.com/modules/organization.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.15/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="p-6">
+    <div class="container mx-auto max-w-7xl">
+        <!-- Header -->
+        <div class="glass p-8 mb-8 text-center">
+            <h1 class="text-4xl font-bold mb-4 flex items-center justify-center gap-4">
+                <i class="fas fa-chart-line text-blue-400"></i>
+                Dashboard GLPI 3.0
+            </h1>
+            <p class="text-xl opacity-80">Sistema Avanzado de Gestión de Tickets</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="glass p-6 mb-8">
+            <form id="uploadForm" class="max-w-xl mx-auto">
+                <div class="upload-zone text-center cursor-pointer">
+                    <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-400"></i>
+                    <input type="file" accept=".csv" name="file" required class="hidden" id="fileInput">
+                    <label for="fileInput" class="block">
+                        <span class="text-lg font-semibold">Arrastra tu archivo CSV aquí o haz click para seleccionar</span>
+                        <p class="text-sm opacity-70 mt-2">Formato soportado: CSV</p>
+                    </label>
+                </div>
+            </form>
+        </div>
+
+        <div id="dashboardContent" class="hidden">
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="stats-card stats-card-1 p-6 rounded-xl" data-type="total">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-ticket-alt text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Total Tickets</h3>
+                    <p id="totalTickets" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="stats-card stats-card-2 p-6 rounded-xl" data-type="technicians">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-users-cog text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Total Técnicos</h3>
+                    <p id="totalTecnicos" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="stats-card stats-card-3 p-6 rounded-xl" data-type="pending">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-clock text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Tickets Pendientes</h3>
+                    <p id="ticketsPendientes" class="text-4xl font-bold">0</p>
+                </div>
+                <div class="stats-card stats-card-4 p-6 rounded-xl" data-type="efficiency">
+                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+                        <i class="fas fa-chart-pie text-white text-xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-2">Eficiencia</h3>
+                    <p id="eficiencia" class="text-4xl font-bold">0%</p>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Categories Chart -->
+                <div class="glass p-6 md:col-span-2">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold">
+                            <i class="fas fa-tags mr-2"></i>
+                            Distribución por Categoría
+                        </h3>
+                        <div class="space-x-2">
+                            <button onclick="toggleChartType('categorias')" class="btn">
+                                <i class="fas fa-sync-alt"></i>
+                                Cambiar Vista
+                            </button>
+                            <button onclick="charts.categorias.toggleDataLabels()" class="btn">
+                                <i class="fas fa-tags"></i>
+                                Etiquetas
+                            </button>
+                            <button onclick="exportChart('categoriasChart')" class="btn">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="categoriasChart" class="chart-container large-chart"></div>
+                </div>
+
+                <!-- Status Chart -->
+                <div class="glass p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">
+                            <i class="fas fa-chart-pie mr-2"></i>
+                            Estados de Tickets
+                        </h3>
+                        <div class="space-x-2">
+                            <button onclick="charts.estados.toggleDataLabels()" class="btn">
+                                <i class="fas fa-tags"></i>
+                                Etiquetas
+                            </button>
+                            <button onclick="exportChart('estadosChart')" class="btn">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="estadosChart" class="chart-container"></div>
+                </div>
+
+                <!-- Monthly Trend Chart -->
+                <div class="glass p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-bold">
+                            <i class="fas fa-chart-line mr-2"></i>
+                            Tendencia Mensual
+                        </h3>
+                        <div class="space-x-2">
+                            <button onclick="charts.tendencia.toggleDataLabels()" class="btn">
+                                <i class="fas fa-tags"></i>
+                                Etiquetas
+                            </button>
+                            <button onclick="exportChart('tendenciaChart')" class="btn">
+                                <i class="fas fa-download"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    <div id="tendenciaChart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Technician Table -->
+            <div class="glass p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">
+                        <i class="fas fa-users-cog mr-2"></i>Tickets por Técnico
+                    </h2>
+                    <div class="space-x-2">
+                        <button onclick="exportTableToCSV()" class="btn">
+                            <i class="fas fa-file-csv"></i>
+                            CSV
+                        </button>
+                        <button onclick="exportTableToPDF()" class="btn">
+                            <i class="fas fa-file-pdf"></i>
+                            PDF
+                        </button>
+                        <button onclick="exportTableToJPG()" class="btn">
+                            <i class="fas fa-image"></i>
+                            JPG
+                        </button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="technicianTable">
+                        <thead>
+                            <tr>
+                                <th>Técnico</th>
+                                <!-- Months will be added dynamically -->
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                            <tr class="font-bold">
+                                <td>Total General</td>
+                                <!-- Totals will be added dynamically -->
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading overlay -->
+        <div id="loadingOverlay" class="loading hidden">
+            <div class="text-center">
+                <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4 pulse"></i>
+                <p class="text-xl">Procesando datos...</p>
+            </div>
+        </div>
+
+        <!-- Action Menu -->
+        <div class="fixed bottom-6 right-6 flex flex-col gap-4">
+            <button onclick="reloadData()" class="btn bg-blue-500 hover:bg-blue-600" title="Recargar Datos">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+            <button onclick="clearData()" class="btn bg-red-500 hover:bg-red-600" title="Limpiar Datos">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <button onclick="exportAllCharts()" class="btn bg-green-500 hover:bg-green-600" title="Exportar Todo">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración global de Highcharts
+        Highcharts.setOptions({
+            chart: {
+                style: {
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                },
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                borderRadius: 20,
+                plotBorderWidth: 0
+            },
+            colors: ['#4caefe', '#3dc3e8', '#2dd9db', '#1feeaf', '#0ff3a0', '#00e887'],
+            title: {
+                style: {
+                    color: '#ffffff',
+                    fontWeight: 'bold'
+                }
+            },
+            legend: {
+                itemStyle: {
+                    color: '#ffffff'
+                },
+                itemHoverStyle: {
+                    color: '#4caefe'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                style: {
+                    color: '#ffffff'
+                }
+            }
+        });
+
+        // Variables globales
+        let dashboardData = null;
+        const charts = {};
+        let currentChartType = 'bar';
+
+        // Funciones de utilidad
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                    ${message}
+                </div>
+            `;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Función para animar valores
+        function animateValue(elementId, endValue, isPercentage = false) {
+            const element = document.getElementById(elementId);
+            const duration = 1500;
+            const startValue = 0;
+            const range = endValue - startValue;
+            const increment = range / (duration / 16);
+            let currentValue = startValue;
+
+            const animate = () => {
+                currentValue += increment;
+                if (currentValue >= endValue) {
+                    currentValue = endValue;
+                    element.textContent = isPercentage ?
+                        `${endValue.toFixed(1)}%` :
+                        Math.round(endValue).toLocaleString();
+                    return;
+                }
+
+                element.textContent = isPercentage ?
+                    `${currentValue.toFixed(1)}%` :
+                    Math.round(currentValue).toLocaleString();
+                requestAnimationFrame(animate);
+            };
+
+            animate();
+        }
+
+        // Función para actualizar el dashboard
+        function updateDashboard(data) {
+            try {
+                sessionStorage.setItem('dashboardData', JSON.stringify(data));
+                dashboardData = data;
+                document.getElementById('dashboardContent').classList.remove('hidden');
+
+                const stats = data.dashboard_stats;
+                
+                // Actualizar estadísticas
+                animateValue('totalTickets', stats.total_tickets);
+                animateValue('totalTecnicos', stats.total_tecnicos);
+                animateValue('ticketsPendientes', stats.tickets_por_estado['Pendiente'] || 0);
+
+                const resueltos = stats.tickets_por_estado['Resuelto'] || 0;
+                const eficiencia = ((resueltos / stats.total_tickets) * 100);
+                animateValue('eficiencia', eficiencia, true);
+
+                // Inicializar gráficos
+                initializeCharts(stats);
+                
+                // Actualizar tabla
+                updateTechnicianTable(data.technician_stats);
+            } catch (error) {
+                showNotification(error.message, 'error');
+            }
+        }
+
+        // Función para inicializar gráficos
+        function initializeCharts(stats) {
+            // Gráfico de categorías
+            charts.categorias = initializeCategoryChart(stats.tickets_por_categoria);
+            // Gráfico de estados
+            charts.estados = initializeStatusChart(stats.tickets_por_estado);
+            // Gráfico de tendencia
+            charts.tendencia = initializeTrendChart(stats.tendencia_mensual);
+        }
+
+        // Función para inicializar el gráfico de categorías
+        function initializeCategoryChart(data) {
+            return Highcharts.chart('categoriasChart', {
+                chart: {
+                    type: currentChartType,
+                    height: '400px'
+                },
+                title: {
+                    text: 'Distribución de Tickets por Categoría',
+                    align: 'left'
+                },
+                xAxis: {
+                    categories: Object.keys(data),
+                    labels: {
+                        style: { color: '#ffffff' },
+                        rotation: -45
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Cantidad de Tickets',
+                        style: { color: '#ffffff' }
+                    },
+                    labels: {
+                        style: { color: '#ffffff' }
+                    }
+                },
+                plotOptions: {
+                    series: {
+                        borderRadius: 8,
+                        dataLabels: {
+                            enabled: true,
+                            color: '#ffffff',
+                            style: {
+                                textOutline: 'none'
+                            }
+                        }
+                    }
+                },
+                series: [{
+                    name: 'Tickets',
+                    data: Object.values(data),
+                    colorByPoint: true
+                }]
+            });
+        }
+
+        // Función para inicializar el gráfico de estados
+        function initializeStatusChart(data) {
+            return Highcharts.chart('estadosChart', {
+                chart: {
+                    type: 'variablepie'
+                },
+                title: {
+                    text: 'Estados de Tickets',
+                    align: 'left'
+                },
+                tooltip: {
+                    pointFormat: '<b>{point.name}</b>: {point.y} tickets<br>({point.percentage:.1f}%)'
+                },
+                plotOptions: {
+                    variablepie: {
+                        allowPointSelect: true,
+                        cursor: 'pointer',
+                        dataLabels: {
+                            enabled: true,
+                            format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                            style: {
+                                color: 'white',
+                                textOutline: 'none'
+                            }
+                        }
+                    }
+                },
+                series: [{
+                    minPointSize: 100,
+                    innerSize: '20%',
+                    zMin: 0,
+                    name: 'Estados',
+                    data: Object.entries(data).map(([name, value]) => ({
+                        name: name,
+                        y: value,
+                        z: value
+                    }))
+                }]
+            });
+        }
+
+        // Función para inicializar el gráfico de tendencia
+        function initializeTrendChart(data) {
+            return Highcharts.chart('tendenciaChart', {
+                chart: {
+                    type: 'areaspline'
+                },
+                title: {
+                    text: 'Tendencia Mensual de Tickets',
+                    align: 'left'
+                },
+                xAxis: {
+                    categories: Object.keys(data),
+                    labels: {
+                        style: { color: '#ffffff' }
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Cantidad de Tickets',
+                        style: { color: '#ffffff' }
+                    },
+                    labels: {
+                        style: { color: '#ffffff' }
+                    }
+                },
+                plotOptions: {
+                    areaspline: {
+                        fillOpacity: 0.5,
+                        marker: {
+                            radius: 4
+                        }
+                    }
+                },
+                series: [{
+                    name: 'Tickets',
+                    data: Object.values(data)
+                }]
+            });
+        }
+
+        // Función para actualizar la tabla de técnicos
+        function updateTechnicianTable(techData) {
+            const table = document.getElementById('technicianTable');
+            const thead = table.querySelector('thead tr');
+            const tbody = table.querySelector('tbody');
+            const tfoot = table.querySelector('tfoot tr');
+
+            // Obtener meses activos
+            const activeMonths = new Set();
+            techData.forEach(tech => {
+                Object.keys(tech).forEach(key => {
+                    if (key !== 'Técnico' && tech[key] > 0) {
+                        activeMonths.add(key);
+                    }
+                });
+            });
+
+            // Actualizar encabezados
+            thead.innerHTML = `
+                <th class="text-left">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-user-cog"></i>
+                        Técnico
+                    </div>
+                </th>
+            `;
+            Array.from(activeMonths).sort().forEach(month => {
+                thead.innerHTML += `
+                    <th class="text-center">
+                        <div class="flex flex-col items-center">
+                            <i class="fas fa-calendar-alt mb-1"></i>
+                            ${month}
+                        </div>
+                    </th>
+                `;
+            });
+            thead.innerHTML += `
+                <th class="text-right">
+                    <div class="flex items-center justify-end gap-2">
+                        <i class="fas fa-calculator"></i>
+                        Total
+                    </div>
+                </th>
+            `;
+
+            // Actualizar filas
+            tbody.innerHTML = '';
+            const monthTotals = {};
+            let grandTotal = 0;
+
+            techData.forEach(tech => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-white/5 cursor-pointer transition-all duration-300';
+                
+                let technicianTotal = 0;
+                row.innerHTML = `
+                    <td class="font-semibold">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-user"></i>
+                            ${tech['Técnico']}
+                        </div>
+                    </td>
+                `;
+
+                Array.from(activeMonths).sort().forEach(month => {
+                    const tickets = tech[month] || 0;
+                    technicianTotal += tickets;
+                    monthTotals[month] = (monthTotals[month] || 0) + tickets;
+
+                    row.innerHTML += `
+                        <td class="text-center ${tickets > 0 ? 'bg-blue-500/10' : ''} transition-all duration-300">
+                            ${tickets}
+                        </td>
+                    `;
+                });
+
+                grandTotal += technicianTotal;
+                row.innerHTML += `
+                    <td class="text-right font-bold text-blue-400">
+                        ${technicianTotal}
+                    </td>
+                `;
+
+                row.addEventListener('click', () => showTechnicianDetails(tech));
+                tbody.appendChild(row);
+            });
+
+            // Actualizar footer
+            tfoot.innerHTML = `
+                <td class="font-bold text-xl">Total General</td>
+                ${Array.from(activeMonths).sort().map(month => `
+                    <td class="text-center font-bold text-xl">${monthTotals[month] || 0}</td>
+                `).join('')}
+                <td class="text-right font-bold text-xl text-blue-400">${grandTotal}</td>
+            `;
+        }
+
+        // Funciones de exportación
+        function exportTableToCSV() {
+            if (!dashboardData) return;
+
+            const rows = [['Técnico']];
+            const table = document.getElementById('technicianTable');
+            const headers = Array.from(table.querySelectorAll('thead th'))
+                .map(th => th.textContent.trim());
+            
+            rows[0].push(...headers.slice(1));
+
+            dashboardData.technician_stats.forEach(tech => {
+                const row = [tech['Técnico']];
+                headers.slice(1, -1).forEach(month => {
+                    row.push(tech[month] || 0);
+                });
+                const total = row.slice(1).reduce((a, b) => a + b, 0);
+                row.push(total);
+                rows.push(row);
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8," +
+            rows.map(e => e.join(",")).join("\n");
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "tickets_por_tecnico.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function exportTableToJPG() {
+            const tableContainer = document.querySelector('.table-container');
+            try {
+                const canvas = await html2canvas(tableContainer, {
+                    scale: 2,
+                    backgroundColor: '#1a1a1a',
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true
+                });
+                
+                const link = document.createElement('a');
+                link.download = 'tickets_por_tecnico.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 1.0);
+                link.click();
+            } catch (error) {
+                showNotification('Error al exportar la imagen', 'error');
+            }
+        }
+
+        function exportTableToPDF() {
+            if (!dashboardData) return;
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const table = document.getElementById('technicianTable');
+            const headers = Array.from(table.querySelectorAll('thead th'))
+                .map(th => th.textContent.trim());
+
+            const rows = dashboardData.technician_stats.map(tech => {
+                const row = [tech['Técnico']];
+                headers.slice(1, -1).forEach(month => {
+                    row.push(tech[month] || 0);
+                });
+                const total = row.slice(1).reduce((a, b) => a + b, 0);
+                row.push(total);
+                return row;
+            });
+
+            doc.autoTable({
+                head: [headers],
+                body: rows,
+                theme: 'grid',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2,
+                },
+                headStyles: {
+                    fillColor: [76, 174, 254],
+                    textColor: 255
+                },
+                alternateRowStyles: {
+                    fillColor: [245, 245, 245]
+                }
+            });
+
+            doc.save('tickets_por_tecnico.pdf');
+        }
+
+        function exportChart(chartId) {
+            const chart = Highcharts.charts.find(chart => chart && chart.renderTo.id === chartId);
+            if (chart) {
+                chart.exportChart({
+                    type: 'image/jpeg',
+                    filename: `chart-${chartId}`
+                });
+            }
+        }
+
+        function exportAllCharts() {
+            Object.entries(charts).forEach(([key, chart]) => {
+                if (chart) {
+                    chart.exportChart({
+                        type: 'image/jpeg',
+                        filename: `chart-${key}`
+                    });
+                }
+            });
+        }
+
+        function toggleChartType(chartId) {
+            const chart = charts[chartId];
+            if (!chart) return;
+
+            currentChartType = currentChartType === 'bar' ? 'column' : 'bar';
+            chart.update({
+                chart: {
+                    type: currentChartType
+                }
+            });
+        }
+
+        // Funciones de datos
+        function reloadData() {
+            const savedData = sessionStorage.getItem('dashboardData');
+            if (savedData) {
+                updateDashboard(JSON.parse(savedData));
+            }
+        }
+
+        function clearData() {
+            sessionStorage.removeItem('dashboardData');
+            location.reload();
+        }
+
+        function showTechnicianDetails(tech) {
+            window.location.href = `ticket-details.html?tech=${encodeURIComponent(tech['Técnico'])}`;
+        }
+
+        // Configuración de subida de archivos
+        function setupFileUpload() {
+            const uploadZone = document.querySelector('.upload-zone');
+            const fileInput = document.getElementById('fileInput');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                uploadZone.classList.add('bg-white/10');
+            }
+
+            function unhighlight(e) {
+                uploadZone.classList.remove('bg-white/10');
+            }
+
+            uploadZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                if (files.length > 0) {
+                    processFile(files[0]);
+                }
+            }
+
+            fileInput.addEventListener('change', function(e) {
+                if (this.files.length > 0) {
+                    processFile(this.files[0]);
+                }
+            });
+
+            document.getElementById('uploadForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const file = fileInput.files[0];
+                if (file) {
+                    processFile(file);
+                }
+            });
+        }
+
+        async function processFile(file) {
+            showLoading();
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data.success) {
+                    throw new Error(data.error || 'Error procesando el archivo');
+                }
+
+                // Limpiar gráficos existentes
+                Object.values(charts).forEach(chart => chart?.destroy?.());
+
+                // Actualizar dashboard
+                updateDashboard(data.data);
+                showNotification('Archivo procesado correctamente', 'success');
+            } catch (error) {
+                showNotification(error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            // Cargar datos guardados
+            const savedData = sessionStorage.getItem('dashboardData');
+            if (savedData) {
+                updateDashboard(JSON.parse(savedData));
+            }
+
+            // Configurar drag and drop
+            setupFileUpload();
+        });
+
+        // Event listeners globales
+        window.addEventListener('resize', function() {
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.reflow) {
+                    chart.reflow();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

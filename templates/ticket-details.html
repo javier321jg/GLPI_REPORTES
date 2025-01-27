@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles de Tickets - GLPI Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/timeline.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --gradient-1: linear-gradient(135deg, #4caefe, #3dc3e8);
+            --gradient-2: linear-gradient(135deg, #2dd9db, #1feeaf);
+            --gradient-3: linear-gradient(135deg, #0ff3a0, #00e887);
+            --gradient-4: linear-gradient(135deg, #23e274, #4caefe);
+        }
+
+        body {
+            background: #1a1a1a;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .glass:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(76, 174, 254, 0.2);
+            border: 1px solid rgba(76, 174, 254, 0.3);
+            color: white;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: rgba(76, 174, 254, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .chart-container {
+            min-height: 400px;
+            margin: 1rem 0;
+        }
+
+        .data-card {
+            background: var(--gradient-1);
+            transition: transform 0.3s ease;
+        }
+
+        .data-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            padding: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th {
+            background: rgba(76, 174, 254, 0.1);
+            padding: 1rem;
+            font-weight: bold;
+            color: white;
+            border-bottom: 2px solid rgba(76, 174, 254, 0.2);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        tr:hover td {
+            background: rgba(76, 174, 254, 0.1);
+        }
+
+        .ticket-link {
+            color: #4caefe;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .ticket-link:hover {
+            color: #3dc3e8;
+            text-decoration: underline;
+        }
+
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="container mx-auto max-w-7xl">
+        <!-- Header with Back Button -->
+        <div class="glass p-6 mb-8">
+            <div class="flex justify-between items-center">
+                <button onclick="window.location.href='index.html'" class="btn">
+                    <i class="fas fa-arrow-left"></i>
+                    Volver al Dashboard
+                </button>
+                <div class="space-x-4">
+                    <button onclick="exportToJPG()" class="btn">
+                        <i class="fas fa-image"></i>
+                        JPG
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Title Section -->
+        <div class="glass p-8 mb-8 text-center">
+            <h1 id="detailTitle" class="text-4xl font-bold mb-4"></h1>
+            <p id="detailSubtitle" class="text-xl opacity-80"></p>
+        </div>
+
+        <!-- Details Content -->
+        <div id="detailsContent" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Content will be dynamically inserted here -->
+        </div>
+
+        <!-- Timeline/Table Section -->
+        <div id="timelineSection" class="glass p-6 mt-8">
+            <!-- Timeline or Table will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading hidden">
+        <div class="text-center">
+            <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4 pulse"></i>
+            <p class="text-xl">Cargando detalles...</p>
+        </div>
+    </div>
+
+    <script>
+        let detailsData = null;
+        const charts = {};
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            const type = params.get('type');
+            const value = params.get('tech') || params.get('category') || 
+                         params.get('status') || params.get('month');
+            return { type: type || 'tech', value };
+        }
+
+        Highcharts.setOptions({
+            chart: {
+                style: {
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                },
+                backgroundColor: 'transparent'
+            },
+            colors: [
+                '#4caefe', '#3dc3e8', '#2dd9db', '#1feeaf',
+                '#0ff3a0', '#00e887', '#23e274', '#4caefe'
+            ],
+            title: {
+                style: {
+                    color: '#ffffff',
+                    fontWeight: 'bold'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                style: {
+                    color: '#ffffff'
+                }
+            }
+        });
+
+        async function loadDetails() {
+            showLoading();
+            const { type, value } = getQueryParams();
+            
+            try {
+                const response = await fetch(`/api/tickets/filter?type=${type}&value=${encodeURIComponent(value)}`);
+                if (!response.ok) throw new Error('Error al cargar los detalles');
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Error al procesar los datos');
+                }
+                
+                detailsData = processTicketsData(data.data.tickets);
+                updateUI(type, value);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al cargar los detalles. Por favor, intente nuevamente.');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function processTicketsData(tickets) {
+            const months = [...new Set(tickets.map(t => t.Mes_Año))].sort();
+            const statusCounts = {};
+            const monthlyPerformance = {};
+            
+            months.forEach(month => {
+                monthlyPerformance[month] = 0;
+            });
+            
+            tickets.forEach(ticket => {
+                statusCounts[ticket.Estados] = (statusCounts[ticket.Estados] || 0) + 1;
+                
+                if (ticket.Mes_Año) {
+                    monthlyPerformance[ticket.Mes_Año]++;
+                }
+            });
+            
+            return {
+                performance: {
+                    months: months,
+                    values: months.map(month => monthlyPerformance[month] || 0)
+                },
+                status_distribution: statusCounts,
+                recent_activity: tickets.slice(0, 10).map(ticket => ({
+                    title: `Ticket #${ticket.ID}`,
+                    date: ticket['Fecha de apertura'],
+                    description: `${ticket.Categoría} - ${ticket.Estados}`,
+                    id: ticket.ID
+                }))
+            };
+        }
+
+        function updateUI(type, value) {
+            const title = document.getElementById('detailTitle');
+            const subtitle = document.getElementById('detailSubtitle');
+
+            switch(type) {
+                case 'tech':
+                    title.textContent = `Detalles del Técnico: ${value}`;
+                    subtitle.textContent = 'Análisis detallado de tickets y performance';
+                    renderTechnicianDetails(detailsData);
+                    break;
+                    
+                case 'category':
+                    title.textContent = `Categoría: ${value}`;
+                    subtitle.textContent = 'Análisis de tickets por categoría';
+                    renderTechnicianDetails(detailsData);
+                    break;
+                    
+                case 'status':
+                    title.textContent = `Estado: ${value}`;
+                    subtitle.textContent = 'Análisis de tickets por estado';
+                    renderTechnicianDetails(detailsData);
+                    break;
+                    
+                case 'month':
+                    title.textContent = `Actividad del Mes: ${value}`;
+                    subtitle.textContent = 'Análisis mensual de tickets';
+                    renderTechnicianDetails(detailsData);
+                    break;
+            }
+        }
+
+        function renderTechnicianDetails(data) {
+            const content = document.getElementById('detailsContent');
+            content.innerHTML = `
+                <div class="glass p-6">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-chart-line mr-2"></i>
+                        Performance Mensual
+                    </h3>
+                    <div id="performanceChart" class="chart-container"></div>
+                </div>
+                <div class="glass p-6">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-tasks mr-2"></i>
+                        Distribución por Estado
+                    </h3>
+                    <div id="statusDistChart" class="chart-container"></div>
+                </div>
+            `;
+
+            initializePerformanceChart(data.performance);
+            initializeStatusDistChart(data.status_distribution);
+
+            const timeline = document.getElementById('timelineSection');
+            timeline.innerHTML = `
+                <h3 class="text-xl font-bold mb-4">
+                    <i class="fas fa-history mr-2"></i>
+                    Tickets Recientes
+                </h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Categoría</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.recent_activity.map(ticket => {
+                                const ticketId = ticket.id;
+                                return `
+                                    <tr>
+                                        <td>
+                                            <a href="https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}" 
+                                               target="_blank" 
+                                               class="ticket-link">
+                                                ${ticket.title}
+                                            </a>
+                                        </td>
+                                        <td>${ticket.date}</td>
+                                        <td>${ticket.description.split(' - ')[0]}</td>
+                                        <td>${ticket.description.split(' - ')[1]}</td>
+                                        <td>
+                                            <button onclick="window.open('https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}', '_blank')" 
+                                                    class="btn btn-sm">
+                                                <i class="fas fa-external-link-alt"></i>
+                                                Ver en GLPI
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function initializePerformanceChart(data) {
+            charts.performance = Highcharts.chart('performanceChart', {
+                chart: {
+                    type: 'spline'
+                },
+                title: {
+                    text: 'Performance Mensual'
+                },
+                xAxis: {
+                    categories: data.months,
+                    labels: {
+                        style: { color: '#ffffff' }
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Cantidad de Tickets',
+                        style: { color: '#ffffff' }
+                    },
+                    gridLineColor: 'rgba(255, 255, 255, 0.1)'
+                },
+                series: [{
+                    name: 'Tickets',
+                    data: data.values
+                }]
+            });
+        }
+
+        // CORRECCIÓN AQUÍ: Se elimina el "title: {title:{ ... }}" duplicado
+        function initializeStatusDistChart(data) {
+            charts.statusDist = Highcharts.chart('statusDistChart', {
+                chart: {
+                    type: 'pie'
+                },
+                title: {
+                    text: 'Distribución por Estado'
+                },
+                plotOptions: {
+                    pie: {
+                        allowPointSelect: true,
+                        cursor: 'pointer',
+                        dataLabels: {
+                            enabled: true,
+                            format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                            style: {
+                                color: 'white',
+                                textOutline: 'none'
+                            }
+                        }
+                    }
+                },
+                series: [{
+                    name: 'Estados',
+                    data: Object.entries(data).map(([name, value]) => ({
+                        name,
+                        y: value
+                    }))
+                }]
+            });
+        }
+
+        // Función para exportar a JPG
+        async function exportToJPG() {
+            const container = document.querySelector('.container');
+            try {
+                const canvas = await html2canvas(container, {
+                    scale: 2,
+                    backgroundColor: '#1a1a1a',
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true
+                });
+                
+                const link = document.createElement('a');
+                link.download = 'detalles-tickets.jpg';
+                link.href = canvas.toDataURL('image/jpeg', 1.0);
+                link.click();
+            } catch (error) {
+                console.error('Error al exportar como JPG:', error);
+                alert('Error al exportar la imagen. Por favor, intente nuevamente.');
+            }
+        }
+
+        // Función para mostrar notificaciones
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white ${
+                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+            } shadow-lg z-50 transform transition-transform duration-300 translate-x-full`;
+            
+            notification.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+                    ${message}
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Trigger animation
+            requestAnimationFrame(() => {
+                notification.style.transform = 'translateX(0)';
+            });
+
+            // Remove notification after 3 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(full)';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Función para abrir un ticket en GLPI
+        function openTicketInGLPI(ticketId) {
+            window.open(`https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}`, '_blank');
+        }
+
+        // Event Listener para el redimensionamiento de la ventana
+        window.addEventListener('resize', function() {
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.reflow) {
+                    chart.reflow();
+                }
+            });
+        });
+
+        // Inicializar la carga de detalles cuando el documento esté listo
+        document.addEventListener('DOMContentLoaded', loadDetails);
+    </script>
+</body>
+</html>

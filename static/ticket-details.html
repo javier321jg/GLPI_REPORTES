@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles de Tickets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(37, 99, 235, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(147, 197, 253, 0.18);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(30, 64, 175, 0.37);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            display: inline-block;
+        }
+
+        .status-assigned { background: rgba(234, 179, 8, 0.4); }
+        .status-resolved { background: rgba(34, 197, 94, 0.4); }
+        .status-pending { background: rgba(249, 115, 22, 0.4); }
+
+        .priority-high { background: rgba(239, 68, 68, 0.4); }
+        .priority-medium { background: rgba(234, 179, 8, 0.4); }
+        .priority-low { background: rgba(34, 197, 94, 0.4); }
+
+        tr:hover {
+            background: rgba(37, 99, 235, 0.1);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+        <div class="glass p-8">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 id="technicianName" class="text-2xl font-bold text-white mb-2">Tickets de [Nombre Técnico]</h1>
+                    <p id="technicianStats" class="text-blue-200"></p>
+                </div>
+                <button onclick="window.location.href='index.html'" 
+                        class="px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 rounded-lg text-white transition-all">
+                    Volver
+                </button>
+            </div>
+        </div>
+
+        <div class="glass p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <input type="text" 
+                       id="searchInput" 
+                       placeholder="Buscar en tickets..." 
+                       class="px-4 py-2 bg-blue-600/20 border border-blue-200/20 rounded-lg text-white placeholder-blue-200">
+                
+                <select id="statusFilter" 
+                        class="px-4 py-2 bg-blue-600/20 border border-blue-200/20 rounded-lg text-white">
+                    <option value="">Todos los estados</option>
+                    <option value="En curso (asignada)">En curso</option>
+                    <option value="Resuelto">Resuelto</option>
+                    <option value="Pendiente">Pendiente</option>
+                </select>
+
+                <select id="priorityFilter"
+                        class="px-4 py-2 bg-blue-600/20 border border-blue-200/20 rounded-lg text-white">
+                    <option value="">Todas las prioridades</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Media">Media</option>
+                    <option value="Baja">Baja</option>
+                </select>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full whitespace-nowrap">
+                    <thead>
+                        <tr class="border-b border-blue-200/20">
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">ID</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Título</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Estado</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Prioridad</th>
+                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Tiempo</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticketsBody">
+                        <!-- Se llenará dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Obtener el técnico de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const technician = urlParams.get('tecnico');
+
+        // Actualizar el nombre del técnico en el título
+        document.getElementById('technicianName').textContent = `Tickets de ${technician}`;
+
+        // Datos de ejemplo (reemplazar con datos reales de tu backend)
+        const ticketsData = [
+            {
+                id: 1,
+                titulo: "Problema con impresora",
+                estado: "En curso (asignada)",
+                prioridad: "Media",
+                tiempo: "2h"
+            },
+            // ... más tickets
+        ];
+
+        function getStatusClass(status) {
+            const classes = {
+                'En curso (asignada)': 'status-assigned',
+                'Resuelto': 'status-resolved',
+                'Pendiente': 'status-pending'
+            };
+            return `status-badge ${classes[status] || 'status-pending'}`;
+        }
+
+        function getPriorityClass(priority) {
+            const classes = {
+                'Alta': 'priority-high',
+                'Media': 'priority-medium',
+                'Baja': 'priority-low'
+            };
+            return `status-badge ${classes[priority] || 'priority-medium'}`;
+        }
+
+        function renderTickets(tickets) {
+            const tbody = document.getElementById('ticketsBody');
+            tbody.innerHTML = '';
+
+            tickets.forEach(ticket => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-blue-200/10';
+                tr.innerHTML = `
+                    <td class="px-6 py-4 text-white">${ticket.id}</td>
+                    <td class="px-6 py-4 text-white">${ticket.titulo}</td>
+                    <td class="px-6 py-4">
+                        <span class="${getStatusClass(ticket.estado)}">${ticket.estado}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="${getPriorityClass(ticket.prioridad)}">${ticket.prioridad}</span>
+                    </td>
+                    <td class="px-6 py-4 text-white">${ticket.tiempo}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Actualizar estadísticas
+            const stats = {
+                total: tickets.length,
+                enCurso: tickets.filter(t => t.estado === 'En curso (asignada)').length,
+                resueltos: tickets.filter(t => t.estado === 'Resuelto').length
+            };
+
+            document.getElementById('technicianStats').textContent = 
+                `Total: ${stats.total} | En curso: ${stats.enCurso} | Resueltos: ${stats.resueltos}`;
+        }
+
+        // Filtrado
+        function filterTickets() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+
+            const filtered = ticketsData.filter(ticket => {
+                const matchesSearch = Object.values(ticket).some(value => 
+                    value.toString().toLowerCase().includes(searchTerm)
+                );
+                const matchesStatus = !statusFilter || ticket.estado === statusFilter;
+                const matchesPriority = !priorityFilter || ticket.prioridad === priorityFilter;
+
+                return matchesSearch && matchesStatus && matchesPriority;
+            });
+
+            renderTickets(filtered);
+        }
+
+        // Event listeners para filtros
+        document.getElementById('searchInput').addEventListener('input', filterTickets);
+        document.getElementById('statusFilter').addEventListener('change', filterTickets);
+        document.getElementById('priorityFilter').addEventListener('change', filterTickets);
+
+        // Cargar datos iniciales
+        renderTickets(ticketsData);
+
+        // Función para cargar datos del servidor (implementar cuando tengas el backend)
+        async function loadTicketsData() {
+            try {
+                const response = await fetch(`/api/tickets/${encodeURIComponent(technician)}`);
+                if (!response.ok) throw new Error('Error cargando datos');
+                const data = await response.json();
+                ticketsData = data;
+                renderTickets(data);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error cargando los tickets');
+            }
+        }
+    </script>
+</body>
+</html>

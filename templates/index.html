@@ -6,135 +6,134 @@
     <title>Dashboard GLPI 3.0</title>
     
     <!-- CSS -->
-     <!-- CSS -->
-     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-     <style>
-         :root {
-             --gradient-1: linear-gradient(135deg, #FF5733, #FF8D1A);
-             --gradient-2: linear-gradient(135deg, #FFC300, #FFD700);
-             --gradient-3: linear-gradient(135deg, #28A745, #5CE67D);
-             --gradient-4: linear-gradient(135deg, #17A2B8, #58D3F7);
-         }
- 
-         body {
-             background: #121212;
-             min-height: 100vh;
-             color: white;
-             font-family: 'Inter', system-ui, sans-serif;
-         }
- 
-         .glass {
-             background: rgba(255, 255, 255, 0.07);
-             backdrop-filter: blur(10px);
-             border: 1px solid rgba(255, 255, 255, 0.15);
-             border-radius: 20px;
-             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-             transition: all 0.3s ease;
-         }
- 
-         .glass:hover {
-             transform: translateY(-2px);
-             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-         }
- 
-         .stats-card {
-             color: white;
-             transition: all 0.3s ease;
-             cursor: pointer;
-         }
- 
-         .stats-card:hover {
-             transform: translateY(-5px);
-         }
- 
-         .stats-card-1 { background: var(--gradient-1); }
-         .stats-card-2 { background: var(--gradient-2); }
-         .stats-card-3 { background: var(--gradient-3); }
-         .stats-card-4 { background: var(--gradient-4); }
- 
-         .btn {
-             padding: 0.75rem 1.5rem;
-             border-radius: 12px;
-             transition: all 0.3s ease;
-             display: inline-flex;
-             align-items: center;
-             gap: 0.5rem;
-             background: rgba(255, 255, 255, 0.2);
-             border: 1px solid rgba(255, 255, 255, 0.3);
-             color: white;
-             cursor: pointer;
-             font-size: 0.875rem;
-         }
- 
-         .btn:hover {
-             background: rgba(255, 255, 255, 0.3);
-             transform: translateY(-2px);
-         }
- 
-         .chart-container {
-             min-height: 400px;
-             margin: 1rem 0;
-         }
- 
-         .large-chart {
-             min-height: 500px;
-         }
- 
-         .table-container {
-             overflow-x: auto;
-             background: rgba(255, 255, 255, 0.03);
-             border-radius: 15px;
-             padding: 1rem;
-         }
- 
-         table {
-             width: 100%;
-             border-collapse: separate;
-             border-spacing: 0;
-         }
- 
-         th, td {
-             padding: 1rem;
-             text-align: left;
-         }
- 
-         th {
-             background: rgba(255, 183, 77, 0.2);
-             font-weight: 600;
-             color: white;
-             border-bottom: 2px solid rgba(255, 183, 77, 0.4);
-         }
- 
-         td {
-             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-         }
- 
-         tbody tr:hover {
-             background: rgba(255, 183, 77, 0.1);
-             cursor: pointer;
-         }
- 
-         .loading {
-             position: fixed;
-             inset: 0;
-             background: rgba(0, 0, 0, 0.9);
-             backdrop-filter: blur(8px);
-             display: flex;
-             justify-content: center;
-             align-items: center;
-             z-index: 50;
-         }
- 
-         @keyframes pulse {
-             0% { transform: scale(1); }
-             50% { transform: scale(1.1); }
-             100% { transform: scale(1); }
-         }
- 
-         .pulse {
-             animation: pulse 2s infinite;
-         }
-     </style>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --gradient-1: linear-gradient(135deg, #FF5733, #FF8D1A);
+            --gradient-2: linear-gradient(135deg, #FFC300, #FFD700);
+            --gradient-3: linear-gradient(135deg, #28A745, #5CE67D);
+            --gradient-4: linear-gradient(135deg, #17A2B8, #58D3F7);
+        }
+
+        body {
+            background: linear-gradient(135deg, #1c3b63, #2e5b93);
+            min-height: 100vh;
+            color: white;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .glass:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .stats-card {
+            color: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stats-card-1 { background: var(--gradient-1); }
+        .stats-card-2 { background: var(--gradient-2); }
+        .stats-card-3 { background: var(--gradient-3); }
+        .stats-card-4 { background: var(--gradient-4); }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .chart-container {
+            min-height: 400px;
+            margin: 1rem 0;
+        }
+
+        .large-chart {
+            min-height: 500px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(255, 183, 77, 0.2);
+            font-weight: 600;
+            color: white;
+            border-bottom: 2px solid rgba(255, 183, 77, 0.4);
+        }
+
+        td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 183, 77, 0.1);
+            cursor: pointer;
+        }
+
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+    </style>
     <!-- Scripts -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.highcharts.com/highcharts.js"></script>

@@ -1,1106 +1,227 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard GLPI 3.0</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard GLPI 3.0</title>
 
-    <!-- CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-    /* Vivid gradients for cards */
-    --gradient-1: linear-gradient(135deg, #FF0099, #FF6B6B);
-    --gradient-2: linear-gradient(135deg, #4158D0, #C850C0);
-    --gradient-3: linear-gradient(135deg, #00F260, #0575E6);
-    --gradient-4: linear-gradient(135deg, #8E2DE2, #4A00E0);
-    
-    /* Animation variables */
-    --transition-speed: 0.3s;
-    --bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
+  <!-- External CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="../static/css/styles.css" />
 
-body {
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
-    min-height: 100vh;
-    color: white;
-    font-family: 'Inter', system-ui, sans-serif;
-}
-
-/* Modern Glass Effect */
-.glass {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 24px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    transition: all var(--transition-speed) var(--bounce);
-}
-
-.glass:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.3);
-    background: rgba(255, 255, 255, 0.15);
-}
-
-/* Animated Stats Cards */
-.stats-card {
-    color: white;
-    transition: all var(--transition-speed) var(--bounce);
-    cursor: pointer;
-    border-radius: 24px;
-    overflow: hidden;
-    position: relative;
-}
-
-.stats-card::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-    transform: translateX(-100%);
-    transition: 0.5s;
-}
-
-.stats-card:hover::after {
-    transform: translateX(100%);
-}
-
-.stats-card:hover {
-    transform: translateY(-8px) scale(1.02);
-}
-
-.stats-card-1 { background: var(--gradient-1); }
-.stats-card-2 { background: var(--gradient-2); }
-.stats-card-3 { background: var(--gradient-3); }
-.stats-card-4 { background: var(--gradient-4); }
-
-/* Modern Buttons */
-.btn {
-    padding: 0.75rem 1.5rem;
-    border-radius: 12px;
-    transition: all var(--transition-speed) var(--bounce);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    position: relative;
-    overflow: hidden;
-}
-
-.btn:hover {
-    transform: translateY(-2px);
-    background: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-}
-
-.btn i {
-    transition: transform var(--transition-speed) var(--bounce);
-}
-
-.btn:hover i {
-    transform: rotate(360deg);
-}
-
-/* Loading Screen */
-.loading {
-    position: fixed;
-    inset: 0;
-    background: rgba(31, 41, 55, 0.95);
-    backdrop-filter: blur(8px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    height: 100vh;
-    width: 100vw;
-}
-
-.loading .text-center {
-    background: rgba(59, 130, 246, 0.1);
-    padding: 2rem 3rem;
-    border-radius: 1rem;
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-}
-
-.loading .fa-cog {
-    color: #3B82F6;
-    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.5));
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.1); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-.pulse {
-    animation: pulse 2s infinite var(--bounce);
-}
-
-/* Table Styles - Updated with Navy Header and White Content */
-.table-container {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 1.5rem;
-    border: 1px solid rgba(59, 89, 152, 0.4);
-    margin-top: 1.5rem;
-    transition: all var(--transition-speed) ease;
-    overflow: hidden;
-}
-
-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-/* Header styling - Navy blue background */
-th {
-    background: #2B3B5E;
-    color: white;
-    font-weight: 600;
-    padding: 1.25rem 1rem;
-    border-bottom: 2px solid rgba(59, 89, 152, 0.4);
-}
-
-/* Data cells - White background */
-td {
-    padding: 1.25rem 1rem;
-    background: rgba(255, 255, 255, 1);
-    border-bottom: 1px solid rgba(59, 89, 152, 0.2);
-    color: #1a1a1a;
-}
-
-tbody tr {
-    transition: all var(--transition-speed) ease;
-    background: rgba(255, 255, 255, 1);
-}
-
-tbody tr:hover {
-    background: rgba(255, 255, 255, 0.9);
-    transform: scale(1.01);
-}
-
-/* Table border styling */
-td:first-child, th:first-child {
-    border-left: 1px solid rgba(59, 89, 152, 0.4);
-}
-
-td:last-child, th:last-child {
-    border-right: 1px solid rgba(59, 89, 152, 0.4);
-}
-
-/* Rounded corners */
-tr:first-child th:first-child { border-top-left-radius: 12px; }
-tr:first-child th:last-child { border-top-right-radius: 12px; }
-tr:last-child td:first-child { border-bottom-left-radius: 12px; }
-tr:last-child td:last-child { border-bottom-right-radius: 12px; }
-
-/* Footer Row */
-tfoot tr td {
-    background: #2B3B5E;
-    font-weight: bold;
-    color: white;
-    border-top: 2px solid rgba(59, 89, 152, 0.4);
-}
-
-/* Chart Container */
-.chart-container {
-    min-height: 400px;
-    transition: all var(--transition-speed) ease;
-    position: relative;
-    margin: 1.5rem 0;
-}
-
-.chart-container:hover {
-    transform: scale(1.01);
-}
-
-/* Upload Zone */
-.upload-zone {
-    border: 2px dashed rgba(59, 89, 152, 0.3);
-    border-radius: 20px;
-    padding: 2.5rem;
-    transition: all var(--transition-speed) var(--bounce);
-    background: rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-}
-
-.upload-zone:hover {
-    border-color: rgba(59, 89, 152, 0.6);
-    background: rgba(59, 89, 152, 0.1);
-    transform: scale(1.02);
-}
-
-/* Action Menu Buttons */
-.btn.bg-blue-500 { 
-    background: linear-gradient(135deg, #4158D0, #C850C0);
-    border: none;
-}
-.btn.bg-red-500 { 
-    background: linear-gradient(135deg, #FF416C, #FF4B2B);
-    border: none;
-}
-.btn.bg-green-500 { 
-    background: linear-gradient(135deg, #00F260, #0575E6);
-    border: none;
-}
-
-.btn.bg-blue-500:hover,
-.btn.bg-red-500:hover,
-.btn.bg-green-500:hover {
-    filter: brightness(1.2);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
-}
-
-/* Utility Classes */
-.hidden {
-    display: none !important;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-    .table-container {
-        padding: 1rem;
-    }
-    
-    td, th {
-        padding: 1rem 0.75rem;
-    }
-    
-    .btn {
-        padding: 0.5rem 1rem;
-    }
-}
-    </style>
-    <!-- Scripts -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.highcharts.com/highcharts.js"></script>
-    <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
-    <script src="https://code.highcharts.com/modules/sankey.js"></script>
-    <script src="https://code.highcharts.com/modules/organization.js"></script>
-    <script src="https://code.highcharts.com/modules/exporting.js"></script>
-    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.15/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- External JS Libraries -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://code.highcharts.com/highcharts.js"></script>
+  <script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+  <script src="https://code.highcharts.com/modules/sankey.js"></script>
+  <script src="https://code.highcharts.com/modules/organization.js"></script>
+  <script src="https://code.highcharts.com/modules/exporting.js"></script>
+  <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.15/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
-
 <body class="p-6">
-    <div class="container mx-auto max-w-7xl">
-        <!-- Header -->
-        <div class="glass p-8 mb-8 text-center">
-            <h1 class="text-4xl font-bold mb-4 flex items-center justify-center gap-4">
-                <i class="fas fa-chart-line text-blue-400"></i>
-                Dashboard GLPI 3.0
-            </h1>
-            <p class="text-xl opacity-80">Sistema Avanzado de Gestión de Tickets</p>
-        </div>
-
-        <!-- Upload Section -->
-        <div class="glass p-6 mb-8">
-            <form id="uploadForm" class="max-w-xl mx-auto">
-                <div class="upload-zone text-center cursor-pointer">
-                    <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-400"></i>
-                    <input type="file" accept=".csv" name="file" required class="hidden" id="fileInput">
-                    <label for="fileInput" class="block">
-                        <span class="text-lg font-semibold">Arrastra tu archivo CSV aquí o haz click para
-                            seleccionar</span>
-                        <p class="text-sm opacity-70 mt-2">Formato soportado: CSV</p>
-                    </label>
-                </div>
-            </form>
-        </div>
-
-        <div id="dashboardContent" class="hidden">
-            <!-- Stats Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div class="stats-card stats-card-1 p-6 rounded-xl" data-type="total">
-                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-ticket-alt text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold mb-2">Total Tickets</h3>
-                    <p id="totalTickets" class="text-4xl font-bold">0</p>
-                </div>
-                <div class="stats-card stats-card-2 p-6 rounded-xl" data-type="technicians">
-                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-users-cog text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold mb-2">Total Técnicos</h3>
-                    <p id="totalTecnicos" class="text-4xl font-bold">0</p>
-                </div>
-                <div class="stats-card stats-card-3 p-6 rounded-xl" data-type="pending">
-                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-clock text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold mb-2">Tickets Pendientes</h3>
-                    <p id="ticketsPendientes" class="text-4xl font-bold">0</p>
-                </div>
-                <div class="stats-card stats-card-4 p-6 rounded-xl" data-type="efficiency">
-                    <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                        <i class="fas fa-chart-pie text-white text-xl"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold mb-2">Eficiencia</h3>
-                    <p id="eficiencia" class="text-4xl font-bold">0%</p>
-                </div>
-            </div>
-
-            <!-- Charts Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <!-- Categories Chart -->
-                <div class="glass p-6 md:col-span-2">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-2xl font-bold">
-                            <i class="fas fa-tags mr-2"></i>
-                            Distribución por Categoría
-                        </h3>
-                        <div class="space-x-2">
-                            <button onclick="toggleChartType('categorias')" class="btn">
-                                <i class="fas fa-sync-alt"></i>
-                                Cambiar Vista
-                            </button>
-                            <button onclick="charts.categorias.toggleDataLabels()" class="btn">
-                                <i class="fas fa-tags"></i>
-                                Etiquetas
-                            </button>
-                            <button onclick="exportChart('categoriasChart')" class="btn">
-                                <i class="fas fa-download"></i>
-                                Exportar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="categoriasChart" class="chart-container large-chart"></div>
-                </div>
-
-                <!-- Status Chart -->
-                <div class="glass p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">
-                            <i class="fas fa-chart-pie mr-2"></i>
-                            Estados de Tickets
-                        </h3>
-                        <div class="space-x-2">
-                            <button onclick="charts.estados.toggleDataLabels()" class="btn">
-                                <i class="fas fa-tags"></i>
-                                Etiquetas
-                            </button>
-                            <button onclick="exportChart('estadosChart')" class="btn">
-                                <i class="fas fa-download"></i>
-                                Exportar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="estadosChart" class="chart-container"></div>
-                </div>
-
-                <!-- Monthly Trend Chart -->
-                <div class="glass p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">
-                            <i class="fas fa-chart-line mr-2"></i>
-                            Tendencia Mensual
-                        </h3>
-                        <div class="space-x-2">
-                            <button onclick="charts.tendencia.toggleDataLabels()" class="btn">
-                                <i class="fas fa-tags"></i>
-                                Etiquetas
-                            </button>
-                            <button onclick="exportChart('tendenciaChart')" class="btn">
-                                <i class="fas fa-download"></i>
-                                Exportar
-                            </button>
-                        </div>
-                    </div>
-                    <div id="tendenciaChart" class="chart-container"></div>
-                </div>
-            </div>
-
-            <!-- Technician Table -->
-            <div class="glass p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold">
-                        <i class="fas fa-users-cog mr-2"></i>Tickets por Técnico
-                    </h2>
-                    <div class="space-x-2">
-                        <button onclick="exportTableToCSV()" class="btn">
-                            <i class="fas fa-file-csv"></i>
-                            CSV
-                        </button>
-                        <button onclick="exportTableToPDF()" class="btn">
-                            <i class="fas fa-file-pdf"></i>
-                            PDF
-                        </button>
-                        <button onclick="exportTableToJPG()" class="btn">
-                            <i class="fas fa-image"></i>
-                            JPG
-                        </button>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table id="technicianTable">
-                        <thead>
-                            <tr>
-                                <th>Técnico</th>
-                                <!-- Months will be added dynamically -->
-                                <th class="text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                        <tfoot>
-                            <tr class="font-bold">
-                                <td>Total General</td>
-                                <!-- Totals will be added dynamically -->
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Loading overlay -->
-        <div id="loadingOverlay" class="loading hidden">
-            <div class="text-center">
-                <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4 pulse"></i>
-                <p class="text-xl">Procesando datos...</p>
-            </div>
-        </div>
-
-        <!-- Action Menu -->
-        <div class="fixed bottom-6 right-6 flex flex-col gap-4">
-            <button onclick="reloadData()" class="btn bg-blue-500 hover:bg-blue-600" title="Recargar Datos">
-                <i class="fas fa-sync-alt"></i>
-            </button>
-            <button onclick="clearData()" class="btn bg-red-500 hover:bg-red-600" title="Limpiar Datos">
-                <i class="fas fa-trash-alt"></i>
-            </button>
-            <button onclick="exportAllCharts()" class="btn bg-green-500 hover:bg-green-600" title="Exportar Todo">
-                <i class="fas fa-download"></i>
-            </button>
-        </div>
+  <video autoplay muted loop id="video-background">
+    <source src="https://videocdn.cdnpk.net/videos/c5161d83-d4b9-4d7d-9c15-de02c50c52ed/horizontal/previews/videvo_watermarked/large.mp4" type="video/mp4">
+  </video>
+  <div class="container mx-auto max-w-7xl">
+    <!-- Header -->
+    <div class="glass p-8 mb-8 text-center">
+      <h1 class="text-4xl font-bold mb-4 flex items-center justify-center gap-4">
+        <i class="fas fa-chart-line text-blue-400"></i>
+        Dashboard GLPI 3.0
+      </h1>
+      <p class="text-xl opacity-80">Sistema Avanzado de Gestión de Tickets</p>
     </div>
 
-    <script>
-        // Configuración global de Highcharts
-        Highcharts.setOptions({
-            chart: {
-                style: {
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                },
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                borderRadius: 20,
-                plotBorderWidth: 0
-            },
-            colors: ['#4caefe', '#3dc3e8', '#2dd9db', '#1feeaf', '#0ff3a0', '#00e887'],
-            title: {
-                style: {
-                    color: '#ffffff',
-                    fontWeight: 'bold'
-                }
-            },
-            legend: {
-                itemStyle: {
-                    color: '#ffffff'
-                },
-                itemHoverStyle: {
-                    color: '#4caefe'
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                style: {
-                    color: '#ffffff'
-                }
-            }
-        });
+    <!-- Upload Section -->
+    <div class="glass p-6 mb-8">
+      <form id="uploadForm" class="max-w-xl mx-auto">
+        <div class="upload-zone text-center cursor-pointer">
+          <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-400"></i>
+          <input type="file" accept=".csv" name="file" required class="hidden" id="fileInput">
+          <label for="fileInput" class="block">
+            <span class="text-lg font-semibold">Arrastra tu archivo CSV aquí o haz click para seleccionar</span>
+            <p class="text-sm opacity-70 mt-2">Formato soportado: CSV</p>
+          </label>
+        </div>
+      </form>
+    </div>
 
-        // Variables globales
-        let dashboardData = null;
-        const charts = {};
-        let currentChartType = 'bar';
+    <div id="dashboardContent" class="hidden">
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="stats-card stats-card-1 p-6 rounded-xl" data-type="total">
+          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <i class="fas fa-ticket-alt text-white text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Total Tickets</h3>
+          <p id="totalTickets" class="text-4xl font-bold">0</p>
+        </div>
+        <div class="stats-card stats-card-2 p-6 rounded-xl" data-type="technicians">
+          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <i class="fas fa-users-cog text-white text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Total Técnicos</h3>
+          <p id="totalTecnicos" class="text-4xl font-bold">0</p>
+        </div>
+        <div class="stats-card stats-card-3 p-6 rounded-xl" data-type="pending">
+          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <i class="fas fa-clock text-white text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Tickets Pendientes</h3>
+          <p id="ticketsPendientes" class="text-4xl font-bold">0</p>
+        </div>
+        <div class="stats-card stats-card-4 p-6 rounded-xl" data-type="efficiency">
+          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
+            <i class="fas fa-chart-pie text-white text-xl"></i>
+          </div>
+          <h3 class="text-lg font-semibold mb-2">Eficiencia</h3>
+          <p id="eficiencia" class="text-4xl font-bold">0%</p>
+        </div>
+      </div>
 
-        // Funciones de utilidad
-        function showLoading() {
-            document.getElementById('loadingOverlay').classList.remove('hidden');
-        }
+      <!-- Charts Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Categories Chart -->
+        <div class="glass p-6 md:col-span-2">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-2xl font-bold">
+              <i class="fas fa-tags mr-2"></i>
+              Distribución por Categoría
+            </h3>
+            <div class="space-x-2">
+              <button onclick="toggleChartType('categorias')" class="btn">
+                <i class="fas fa-sync-alt"></i>
+                Cambiar Vista
+              </button>
+              <button onclick="charts.categorias.toggleDataLabels()" class="btn">
+                <i class="fas fa-tags"></i>
+                Etiquetas
+              </button>
+              <button onclick="exportChart('categoriasChart')" class="btn">
+                <i class="fas fa-download"></i>
+                Exportar
+              </button>
+            </div>
+          </div>
+          <div id="categoriasChart" class="chart-container large-chart"></div>
+        </div>
 
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
-        }
+        <!-- Status Chart -->
+        <div class="glass p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">
+              <i class="fas fa-chart-pie mr-2"></i>
+              Estados de Tickets
+            </h3>
+            <div class="space-x-2">
+              <button onclick="charts.estados.toggleDataLabels()" class="btn">
+                <i class="fas fa-tags"></i>
+                Etiquetas
+              </button>
+              <button onclick="exportChart('estadosChart')" class="btn">
+                <i class="fas fa-download"></i>
+                Exportar
+              </button>
+            </div>
+          </div>
+          <div id="estadosChart" class="chart-container"></div>
+        </div>
 
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                    ${message}
-                </div>
-            `;
-            document.body.appendChild(notification);
+        <!-- Monthly Trend Chart -->
+        <div class="glass p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold">
+              <i class="fas fa-chart-line mr-2"></i>
+              Tendencia Mensual
+            </h3>
+            <div class="space-x-2">
+              <button onclick="charts.tendencia.toggleDataLabels()" class="btn">
+                <i class="fas fa-tags"></i>
+                Etiquetas
+              </button>
+              <button onclick="exportChart('tendenciaChart')" class="btn">
+                <i class="fas fa-download"></i>
+                Exportar
+              </button>
+            </div>
+          </div>
+          <div id="tendenciaChart" class="chart-container"></div>
+        </div>
+      </div>
 
-            setTimeout(() => notification.classList.add('show'), 100);
-            setTimeout(() => {
-                notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-
-        // Función para animar valores
-        function animateValue(elementId, endValue, isPercentage = false) {
-            const element = document.getElementById(elementId);
-            const duration = 1500;
-            const startValue = 0;
-            const range = endValue - startValue;
-            const increment = range / (duration / 16);
-            let currentValue = startValue;
-
-            const animate = () => {
-                currentValue += increment;
-                if (currentValue >= endValue) {
-                    currentValue = endValue;
-                    element.textContent = isPercentage ?
-                        `${endValue.toFixed(1)}%` :
-                        Math.round(endValue).toLocaleString();
-                    return;
-                }
-
-                element.textContent = isPercentage ?
-                    `${currentValue.toFixed(1)}%` :
-                    Math.round(currentValue).toLocaleString();
-                requestAnimationFrame(animate);
-            };
-
-            animate();
-        }
-
-        // Función para actualizar el dashboard
-        function updateDashboard(data) {
-            try {
-                sessionStorage.setItem('dashboardData', JSON.stringify(data));
-                dashboardData = data;
-                document.getElementById('dashboardContent').classList.remove('hidden');
-
-                const stats = data.dashboard_stats;
-
-                // Actualizar estadísticas
-                animateValue('totalTickets', stats.total_tickets);
-                animateValue('totalTecnicos', stats.total_tecnicos);
-                animateValue('ticketsPendientes', stats.tickets_por_estado['Pendiente'] || 0);
-
-                const resueltos = stats.tickets_por_estado['Resuelto'] || 0;
-                const eficiencia = ((resueltos / stats.total_tickets) * 100);
-                animateValue('eficiencia', eficiencia, true);
-
-                // Inicializar gráficos
-                initializeCharts(stats);
-
-                // Actualizar tabla
-                updateTechnicianTable(data.technician_stats);
-            } catch (error) {
-                showNotification(error.message, 'error');
-            }
-        }
-
-        // Función para inicializar gráficos
-        function initializeCharts(stats) {
-            // Gráfico de categorías
-            charts.categorias = initializeCategoryChart(stats.tickets_por_categoria);
-            // Gráfico de estados
-            charts.estados = initializeStatusChart(stats.tickets_por_estado);
-            // Gráfico de tendencia
-            charts.tendencia = initializeTrendChart(stats.tendencia_mensual);
-        }
-
-        // Función para inicializar el gráfico de categorías
-        function initializeCategoryChart(data) {
-            return Highcharts.chart('categoriasChart', {
-                chart: {
-                    type: currentChartType,
-                    height: '400px'
-                },
-                title: {
-                    text: 'Distribución de Tickets por Categoría',
-                    align: 'left'
-                },
-                xAxis: {
-                    categories: Object.keys(data),
-                    labels: {
-                        style: { color: '#ffffff' },
-                        rotation: -45
-                    }
-                },
-                yAxis: {
-                    title: {
-                        text: 'Cantidad de Tickets',
-                        style: { color: '#ffffff' }
-                    },
-                    labels: {
-                        style: { color: '#ffffff' }
-                    }
-                },
-                plotOptions: {
-                    series: {
-                        borderRadius: 8,
-                        dataLabels: {
-                            enabled: true,
-                            color: '#ffffff',
-                            style: {
-                                textOutline: 'none'
-                            }
-                        }
-                    }
-                },
-                series: [{
-                    name: 'Tickets',
-                    data: Object.values(data),
-                    colorByPoint: true
-                }]
-            });
-        }
-
-        // Función para inicializar el gráfico de estados
-        function initializeStatusChart(data) {
-            return Highcharts.chart('estadosChart', {
-                chart: {
-                    type: 'variablepie'
-                },
-                title: {
-                    text: 'Estados de Tickets',
-                    align: 'left'
-                },
-                tooltip: {
-                    pointFormat: '<b>{point.name}</b>: {point.y} tickets<br>({point.percentage:.1f}%)'
-                },
-                plotOptions: {
-                    variablepie: {
-                        allowPointSelect: true,
-                        cursor: 'pointer',
-                        dataLabels: {
-                            enabled: true,
-                            format: '<b>{point.name}</b>: {point.percentage:.1f}%',
-                            style: {
-                                color: 'white',
-                                textOutline: 'none'
-                            }
-                        }
-                    }
-                },
-                series: [{
-                    minPointSize: 100,
-                    innerSize: '20%',
-                    zMin: 0,
-                    name: 'Estados',
-                    data: Object.entries(data).map(([name, value]) => ({
-                        name: name,
-                        y: value,
-                        z: value
-                    }))
-                }]
-            });
-        }
-
-        // Función para inicializar el gráfico de tendencia
-        function initializeTrendChart(data) {
-            return Highcharts.chart('tendenciaChart', {
-                chart: {
-                    type: 'areaspline'
-                },
-                title: {
-                    text: 'Tendencia Mensual de Tickets',
-                    align: 'left'
-                },
-                xAxis: {
-                    categories: Object.keys(data),
-                    labels: {
-                        style: { color: '#ffffff' }
-                    }
-                },
-                yAxis: {
-                    title: {
-                        text: 'Cantidad de Tickets',
-                        style: { color: '#ffffff' }
-                    },
-                    labels: {
-                        style: { color: '#ffffff' }
-                    }
-                },
-                plotOptions: {
-                    areaspline: {
-                        fillOpacity: 0.5,
-                        marker: {
-                            radius: 4
-                        }
-                    }
-                },
-                series: [{
-                    name: 'Tickets',
-                    data: Object.values(data)
-                }]
-            });
-        }
-
-        // Función para actualizar la tabla de técnicos
-        function updateTechnicianTable(techData) {
-            const table = document.getElementById('technicianTable');
-            const thead = table.querySelector('thead tr');
-            const tbody = table.querySelector('tbody');
-            const tfoot = table.querySelector('tfoot tr');
-
-            // Obtener meses activos
-            const activeMonths = new Set();
-            techData.forEach(tech => {
-                Object.keys(tech).forEach(key => {
-                    if (key !== 'Técnico' && tech[key] > 0) {
-                        activeMonths.add(key);
-                    }
-                });
-            });
-
-            // Actualizar encabezados
-            thead.innerHTML = `
-                <th class="text-left">
-                    <div class="flex items-center gap-2">
-                        <i class="fas fa-user-cog"></i>
-                        Técnico
-                    </div>
+      <!-- Technician Table & Chart -->
+      <div class="glass p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold">
+            <i class="fas fa-users-cog mr-2"></i>Tickets por Técnico
+          </h2>
+          <div class="space-x-2">
+            <button onclick="exportTableToCSV()" class="btn">
+              <i class="fas fa-file-csv"></i>
+              CSV
+            </button>
+            <button onclick="exportTableToPDF()" class="btn">
+              <i class="fas fa-file-pdf"></i>
+              PDF
+            </button>
+            <button onclick="exportTableToJPG()" class="btn">
+              <i class="fas fa-image"></i>
+              JPG
+            </button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="technicianTable">
+            <thead>
+              <tr>
+                <th>
+                  <div class="flex items-center gap-2">
+                    <i class="fas fa-user-cog"></i>
+                    Técnico
+                  </div>
                 </th>
-            `;
-            Array.from(activeMonths).sort().forEach(month => {
-                thead.innerHTML += `
-                    <th class="text-center">
-                        <div class="flex flex-col items-center">
-                            <i class="fas fa-calendar-alt mb-1"></i>
-                            ${month}
-                        </div>
-                    </th>
-                `;
-            });
-            thead.innerHTML += `
-                <th class="text-right">
-                    <div class="flex items-center justify-end gap-2">
-                        <i class="fas fa-calculator"></i>
-                        Total
-                    </div>
-                </th>
-            `;
+                <!-- Los meses se agregarán dinámicamente -->
+                <th class="text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr class="font-bold">
+                <td>Total General</td>
+                <!-- Totales se agregarán dinámicamente -->
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <!-- Nuevo gráfico de Tickets por Técnico -->
+        <div id="technicianChart" class="chart-container mt-6"></div>
+      </div>
+    </div>
 
-            // Actualizar filas
-            tbody.innerHTML = '';
-            const monthTotals = {};
-            let grandTotal = 0;
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading hidden">
+      <div class="text-center">
+        <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4 pulse"></i>
+        <p class="text-xl">Procesando datos...</p>
+      </div>
+    </div>
 
-            techData.forEach(tech => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-white/5 cursor-pointer transition-all duration-300';
-
-                let technicianTotal = 0;
-                row.innerHTML = `
-                    <td class="font-semibold">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-user"></i>
-                            ${tech['Técnico']}
-                        </div>
-                    </td>
-                `;
-
-                Array.from(activeMonths).sort().forEach(month => {
-                    const tickets = tech[month] || 0;
-                    technicianTotal += tickets;
-                    monthTotals[month] = (monthTotals[month] || 0) + tickets;
-
-                    row.innerHTML += `
-                        <td class="text-center ${tickets > 0 ? 'bg-blue-500/10' : ''} transition-all duration-300">
-                            ${tickets}
-                        </td>
-                    `;
-                });
-
-                grandTotal += technicianTotal;
-                row.innerHTML += `
-                    <td class="text-right font-bold text-blue-400">
-                        ${technicianTotal}
-                    </td>
-                `;
-
-                row.addEventListener('click', () => showTechnicianDetails(tech));
-                tbody.appendChild(row);
-            });
-
-            // Actualizar footer
-            tfoot.innerHTML = `
-                <td class="font-bold text-xl">Total General</td>
-                ${Array.from(activeMonths).sort().map(month => `
-                    <td class="text-center font-bold text-xl">${monthTotals[month] || 0}</td>
-                `).join('')}
-                <td class="text-right font-bold text-xl text-blue-400">${grandTotal}</td>
-            `;
-        }
-
-        // Funciones de exportación
-        function exportTableToCSV() {
-            if (!dashboardData) return;
-
-            const rows = [['Técnico']];
-            const table = document.getElementById('technicianTable');
-            const headers = Array.from(table.querySelectorAll('thead th'))
-                .map(th => th.textContent.trim());
-
-            rows[0].push(...headers.slice(1));
-
-            dashboardData.technician_stats.forEach(tech => {
-                const row = [tech['Técnico']];
-                headers.slice(1, -1).forEach(month => {
-                    row.push(tech[month] || 0);
-                });
-                const total = row.slice(1).reduce((a, b) => a + b, 0);
-                row.push(total);
-                rows.push(row);
-            });
-
-            const csvContent = "data:text/csv;charset=utf-8," +
-                rows.map(e => e.join(",")).join("\n");
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "tickets_por_tecnico.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        async function exportTableToJPG() {
-            const tableContainer = document.querySelector('.table-container');
-            try {
-                const canvas = await html2canvas(tableContainer, {
-                    scale: 2,
-                    backgroundColor: '#1a1a1a',
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: true
-                });
-
-                const link = document.createElement('a');
-                link.download = 'tickets_por_tecnico.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 1.0);
-                link.click();
-            } catch (error) {
-                showNotification('Error al exportar la imagen', 'error');
-            }
-        }
-
-        function exportTableToPDF() {
-            if (!dashboardData) return;
-
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-
-            const table = document.getElementById('technicianTable');
-            const headers = Array.from(table.querySelectorAll('thead th'))
-                .map(th => th.textContent.trim());
-
-            const rows = dashboardData.technician_stats.map(tech => {
-                const row = [tech['Técnico']];
-                headers.slice(1, -1).forEach(month => {
-                    row.push(tech[month] || 0);
-                });
-                const total = row.slice(1).reduce((a, b) => a + b, 0);
-                row.push(total);
-                return row;
-            });
-
-            doc.autoTable({
-                head: [headers],
-                body: rows,
-                theme: 'grid',
-                styles: {
-                    fontSize: 8,
-                    cellPadding: 2,
-                },
-                headStyles: {
-                    fillColor: [76, 174, 254],
-                    textColor: 255
-                },
-                alternateRowStyles: {
-                    fillColor: [245, 245, 245]
-                }
-            });
-
-            doc.save('tickets_por_tecnico.pdf');
-        }
-
-        function exportChart(chartId) {
-            const chart = Highcharts.charts.find(chart => chart && chart.renderTo.id === chartId);
-            if (chart) {
-                chart.exportChart({
-                    type: 'image/jpeg',
-                    filename: `chart-${chartId}`
-                });
-            }
-        }
-
-        function exportAllCharts() {
-            Object.entries(charts).forEach(([key, chart]) => {
-                if (chart) {
-                    chart.exportChart({
-                        type: 'image/jpeg',
-                        filename: `chart-${key}`
-                    });
-                }
-            });
-        }
-
-        function toggleChartType(chartId) {
-            const chart = charts[chartId];
-            if (!chart) return;
-
-            currentChartType = currentChartType === 'bar' ? 'column' : 'bar';
-            chart.update({
-                chart: {
-                    type: currentChartType
-                }
-            });
-        }
-
-        // Funciones de datos
-        function reloadData() {
-            const savedData = sessionStorage.getItem('dashboardData');
-            if (savedData) {
-                updateDashboard(JSON.parse(savedData));
-            }
-        }
-
-        function clearData() {
-            sessionStorage.removeItem('dashboardData');
-            location.reload();
-        }
-
-        function showTechnicianDetails(tech) {
-            window.location.href = `ticket-details.html?tech=${encodeURIComponent(tech['Técnico'])}`;
-        }
-
-        // Configuración de subida de archivos
-        function setupFileUpload() {
-            const uploadZone = document.querySelector('.upload-zone');
-            const fileInput = document.getElementById('fileInput');
-
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                uploadZone.addEventListener(eventName, preventDefaults, false);
-            });
-
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                uploadZone.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                uploadZone.addEventListener(eventName, unhighlight, false);
-            });
-
-            function highlight(e) {
-                uploadZone.classList.add('bg-white/10');
-            }
-
-            function unhighlight(e) {
-                uploadZone.classList.remove('bg-white/10');
-            }
-
-            uploadZone.addEventListener('drop', handleDrop, false);
-
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                fileInput.files = files;
-                if (files.length > 0) {
-                    processFile(files[0]);
-                }
-            }
-
-            fileInput.addEventListener('change', function (e) {
-                if (this.files.length > 0) {
-                    processFile(this.files[0]);
-                }
-            });
-
-            document.getElementById('uploadForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const file = fileInput.files[0];
-                if (file) {
-                    processFile(file);
-                }
-            });
-        }
-
-        async function processFile(file) {
-            showLoading();
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-                if (!data.success) {
-                    throw new Error(data.error || 'Error procesando el archivo');
-                }
-
-                // Limpiar gráficos existentes
-                Object.values(charts).forEach(chart => chart?.destroy?.());
-
-                // Actualizar dashboard
-                updateDashboard(data.data);
-                showNotification('Archivo procesado correctamente', 'success');
-            } catch (error) {
-                showNotification(error.message, 'error');
-            } finally {
-                hideLoading();
-            }
-        }
-
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', function () {
-            // Cargar datos guardados
-            const savedData = sessionStorage.getItem('dashboardData');
-            if (savedData) {
-                updateDashboard(JSON.parse(savedData));
-            }
-
-            // Configurar drag and drop
-            setupFileUpload();
-        });
-
-        // Event listeners globales
-        window.addEventListener('resize', function () {
-            Object.values(charts).forEach(chart => {
-                if (chart && chart.reflow) {
-                    chart.reflow();
-                }
-            });
-        });
-    </script>
+    <!-- Action Menu -->
+    <div class="fixed bottom-6 right-6 flex flex-col gap-4">
+      <button onclick="reloadData()" class="btn bg-blue-500 hover:bg-blue-600" title="Recargar Datos">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+      <button onclick="clearData()" class="btn bg-red-500 hover:bg-red-600" title="Limpiar Datos">
+        <i class="fas fa-trash-alt"></i>
+      </button>
+      <button onclick="exportAllCharts()" class="btn bg-green-500 hover:bg-green-600" title="Exportar Todo">
+        <i class="fas fa-download"></i>
+      </button>
+    </div>
+  </div>
+  <script src="../static/js/script.js"></script>
 </body>
-
 </html>

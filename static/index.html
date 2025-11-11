@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Dashboard GLPI 3.0</title>
+<title>Reportes GLPI – SENASA</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
@@ -17,409 +17,174 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
 
 <style>
-  :root { --glass: rgba(255,255,255,.06); --stroke: rgba(255,255,255,.12); }
-  body{ background: radial-gradient(1200px 800px at 10% 10%, #0b1220 0, rgba(11,18,32,0) 60%), #0a0f1a; color:#e9eef5; font-family: Inter, system-ui, sans-serif; }
-  .glass{ background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--stroke); border-radius: 16px; }
-  .btn{ padding:.6rem .9rem; border-radius:10px; background:rgba(255,255,255,.08); border:1px solid var(--stroke); transition:.2s; }
-  .btn:hover{ background:rgba(76,174,254,.25); }
-  .chart-container{ width:100%; height:380px; }
-  .large-chart{ height:460px; }
-  .upload-zone{ border:2px dashed var(--stroke); padding:2rem; border-radius:14px; cursor:pointer; }
-  .upload-zone:hover{ border-color:#4caefe; background:rgba(76,174,254,.08); }
-  .stats-card{ background:linear-gradient(160deg, rgba(76,174,254,.18), rgba(255,255,255,.04)); border:1px solid var(--stroke); }
-  @keyframes fadeIn { from{opacity:0; transform: translateY(8px);} to{opacity:1; transform:none;} }
-  .animate-fadeIn{ animation: fadeIn .35s ease-out; }
+  :root { --azul:#0d2d62; --azul2:#113b7f; --stroke: rgba(255,255,255,.08); }
+  body{ background: #0a0f1a; color:#e9eef5; font-family: Inter, system-ui, sans-serif; }
+  header{ background: linear-gradient(90deg, var(--azul), var(--azul2)); }
+  .panel{ background:#0f1625; border:1px solid var(--stroke); border-radius:16px; }
+  .btn{ padding:.6rem .9rem; border-radius:10px; background:#113b7f; color:#fff; }
+  .btn:hover{ filter: brightness(1.08); }
+  .upload-zone{ border:2px dashed rgba(255,255,255,.2); padding:2rem; border-radius:14px; cursor:pointer; }
+  .upload-zone:hover{ background:rgba(17,59,127,.15); }
+  .chart-container{ width:100%; height:360px; }
+  /* Tabla estilo SENASA */
   table{ width:100%; border-collapse: collapse; }
-  thead th{ position:sticky; top:0; background:rgba(255,255,255,.06); }
-  th, td{ padding:.65rem .8rem; border-bottom: 1px solid var(--stroke); }
+  thead th{ background: var(--azul); color:#fff; position: sticky; top:0; z-index:1; }
+  th, td{ padding:.7rem .8rem; border-bottom: 1px solid #e5e7eb; color:#0a0f1a; }
+  tbody tr:nth-child(odd){ background:#ffffff; }
+  tbody tr:nth-child(even){ background:#f8fafc; }
+  tfoot td{ background:#eaf2ff; color:#0a0f1a; font-weight:700; }
+  .table-wrap{ background:#ffffff; border-radius:12px; overflow:auto; }
 </style>
 </head>
-<body class="p-6">
-  <div class="container mx-auto max-w-7xl space-y-8">
-    <header class="glass p-8 text-center">
-      <h1 class="text-4xl font-extrabold flex items-center justify-center gap-3">
-        <i class="fas fa-chart-line text-blue-400"></i> Dashboard GLPI 3.0
-      </h1>
-      <p class="text-lg opacity-80 mt-2">Sistema Avanzado de Gestión de Tickets</p>
-    </header>
+<body class="pb-12">
+  <header class="p-5">
+    <div class="max-w-7xl mx-auto flex items-center gap-4">
+      <img src="https://s3.amazonaws.com/documentos.api.gob.pe/9smhbpmapffwdhy4kkc6mhwz8tvf?response-content-disposition=inline%3B%20filename%3D%22Sin%20ti%253Ftulo-1-01%20%25281%2529.png%22%3B%20filename%2A%3DUTF-8%27%27Sin%2520ti%25CC%2581tulo-1-01%2520%25281%2529.png&response-content-type=image%2Fpng&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJREKOSPKMJFYJDAQ%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T032430Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=c69efa5a234b1a50a7f5a7447321a7b4950da204cc2bed78530767256864094a"
+           alt="SENASA" class="h-10 w-auto" onerror="this.style.display='none'"/>
+      <div>
+        <h1 class="text-2xl md:text-3xl font-extrabold tracking-wide">Reportes GLPI – SENASA</h1>
+        <p class="opacity-80">Sistema de análisis de tickets</p>
+      </div>
+    </div>
+  </header>
 
-    <!-- Subida de CSV -> Backend -->
-    <section class="glass p-6">
+  <main class="max-w-7xl mx-auto p-6 space-y-8">
+    <!-- Subida -->
+    <section class="panel p-6">
       <form id="uploadForm" class="max-w-xl mx-auto">
         <div class="upload-zone text-center" onclick="document.getElementById('file').click()">
-          <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-400"></i>
+          <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-300"></i>
           <input id="file" type="file" name="file" accept=".csv" class="hidden" />
-          <p class="text-lg font-semibold">Arrastra tu CSV o haz clic para seleccionar</p>
-          <p class="text-sm opacity-70 mt-1">Soporta encabezados: <code>ID/Id</code>, <code>Fecha</code>, <code>Estado</code>, <code>Prioridad</code>, <code>Técnico/Tecnico</code>, <code>Categoría/Categoria</code></p>
+          <p class="text-lg font-semibold text-white/90">Arrastra tu CSV o haz clic para seleccionar</p>
+          <p class="text-sm text-white/70 mt-1">Encabezados soportados: ID/Id, Fecha, Estado, Prioridad, Técnico/Tecnico, Categoría/Categoria</p>
         </div>
       </form>
     </section>
 
-    <!-- Filtros -->
-    <section id="filtersSection" class="glass p-6 hidden">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-bold"><i class="fas fa-filter mr-2"></i>Filtros</h2>
-        <button class="btn" onclick="clearAllFilters()"><i class="fas fa-broom mr-2"></i>Limpiar</button>
+    <!-- KPIs -->
+    <section id="kpis" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 hidden">
+      <div class="panel p-5">
+        <div class="text-white/70 text-sm">Total Tickets</div>
+        <div id="k_total" class="text-4xl font-extrabold">0</div>
       </div>
-      <div id="filterGroups" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
-      <div id="activeFilters" class="mt-4 flex flex-wrap gap-2"></div>
+      <div class="panel p-5">
+        <div class="text-white/70 text-sm">Total Técnicos</div>
+        <div id="k_tecnicos" class="text-4xl font-extrabold">0</div>
+      </div>
+      <div class="panel p-5">
+        <div class="text-white/70 text-sm">Pendientes</div>
+        <div id="k_pend" class="text-4xl font-extrabold">0</div>
+      </div>
+      <div class="panel p-5">
+        <div class="text-white/70 text-sm">Eficiencia</div>
+        <div id="k_eff" class="text-4xl font-extrabold">0%</div>
+      </div>
     </section>
 
-    <!-- Dashboard -->
-    <section id="dashboardContent" class="hidden space-y-6">
-      <!-- KPIs -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div class="stats-card p-6 rounded-xl animate-fadeIn">
-          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-ticket-alt"></i></div>
-          <div class="text-sm opacity-75">Total Tickets</div>
-          <div id="totalTickets" class="text-4xl font-bold">0</div>
-        </div>
-        <div class="stats-card p-6 rounded-xl animate-fadeIn">
-          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-users-cog"></i></div>
-          <div class="text-sm opacity-75">Total Técnicos</div>
-          <div id="totalTecnicos" class="text-4xl font-bold">0</div>
-        </div>
-        <div class="stats-card p-6 rounded-xl animate-fadeIn">
-          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-clock"></i></div>
-          <div class="text-sm opacity-75">Tickets Pendientes</div>
-          <div id="ticketsPendientes" class="text-4xl font-bold">0</div>
-        </div>
-        <div class="stats-card p-6 rounded-xl animate-fadeIn">
-          <div class="bg-white/10 w-12 h-12 rounded-lg flex items-center justify-center mb-4"><i class="fas fa-gauge-high"></i></div>
-          <div class="text-sm opacity-75">Eficiencia</div>
-          <div id="eficiencia" class="text-4xl font-bold">0%</div>
-        </div>
-      </div>
-
-      <!-- Gráficos -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="glass p-6 md:col-span-2 rounded-xl">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-2xl font-bold"><i class="fas fa-tags mr-2"></i>Distribución por Categoría</h3>
-            <button class="btn" onclick="exportChart('categoriasChart')"><i class="fas fa-download mr-2"></i>Exportar</button>
-          </div>
-          <div id="categoriasChart" class="chart-container large-chart"></div>
-        </div>
-        <div class="glass p-6 rounded-xl">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-xl font-bold"><i class="fas fa-chart-pie mr-2"></i>Estados</h3>
-            <button class="btn" onclick="exportChart('estadosChart')"><i class="fas fa-download mr-2"></i>Exportar</button>
-          </div>
-          <div id="estadosChart" class="chart-container"></div>
-        </div>
-        <div class="glass p-6 rounded-xl">
-          <div class="flex justify-between items-center mb-3">
-            <h3 class="text-xl font-bold"><i class="fas fa-chart-line mr-2"></i>Tendencia Mensual</h3>
-            <button class="btn" onclick="exportChart('tendenciaChart')"><i class="fas fa-download mr-2"></i>Exportar</button>
-          </div>
-          <div id="tendenciaChart" class="chart-container"></div>
-        </div>
-      </div>
-
-      <!-- Tabla -->
-      <div class="glass p-6 rounded-xl">
+    <!-- Gráficos -->
+    <section id="charts" class="grid grid-cols-1 lg:grid-cols-2 gap-6 hidden">
+      <div class="panel p-6">
         <div class="flex justify-between items-center mb-3">
-          <h2 class="text-2xl font-bold"><i class="fas fa-users-cog mr-2"></i>Tickets por Técnico</h2>
-          <div class="space-x-2">
-            <button class="btn" onclick="exportTableToCSV()"><i class="fas fa-file-csv mr-2"></i>CSV</button>
-            <button class="btn" onclick="exportTableToPDF()"><i class="fas fa-file-pdf mr-2"></i>PDF</button>
-            <button class="btn" onclick="exportTableToJPG()"><i class="fas fa-image mr-2"></i>JPG</button>
-          </div>
+          <h3 class="text-xl font-bold">Distribución por Categoría</h3>
+          <button class="btn" onclick="exportChart('categChart')"><i class="fas fa-download mr-2"></i>JPG</button>
         </div>
-        <div class="overflow-auto max-h-[460px] table-container">
-          <table id="technicianTable">
-            <thead><tr><th class="text-left">Técnico</th><th class="text-right">Total</th></tr></thead>
-            <tbody></tbody>
-            <tfoot><tr class="font-bold"><td>Total General</td><td class="text-right">0</td></tr></tfoot>
-          </table>
+        <div id="categChart" class="chart-container"></div>
+      </div>
+      <div class="panel p-6">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xl font-bold">Estados</h3>
+          <button class="btn" onclick="exportChart('estadoChart')"><i class="fas fa-download mr-2"></i>JPG</button>
         </div>
+        <div id="estadoChart" class="chart-container"></div>
+      </div>
+      <div class="panel p-6 lg:col-span-2">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xl font-bold">Tendencia Mensual</h3>
+          <button class="btn" onclick="exportChart('trendChart')"><i class="fas fa-download mr-2"></i>JPG</button>
+        </div>
+        <div id="trendChart" class="chart-container"></div>
       </div>
     </section>
-  </div>
+
+    <!-- Tabla -->
+    <section id="tableSection" class="space-y-3 hidden">
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-bold">Tickets por Técnico</h3>
+        <div class="flex gap-2">
+          <button class="btn" onclick="exportTableToExcel()"><i class="fas fa-file-excel mr-2"></i>Excel</button>
+          <button class="btn" onclick="exportTableToPDF()"><i class="fas fa-file-pdf mr-2"></i>PDF</button>
+          <button class="btn" onclick="exportTableToJPG()"><i class="fas fa-image mr-2"></i>JPG</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="techTable">
+          <thead>
+            <tr><th class="text-left text-white">Técnico</th><th class="text-right text-white">Total</th></tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot><tr><td>Total General</td><td class="text-right">0</td></tr></tfoot>
+        </table>
+      </div>
+    </section>
+  </main>
 
   <!-- Overlay -->
-  <div id="loadingOverlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
-    <div class="text-center">
-      <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4"></i>
+  <div id="overlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
+    <div class="text-center text-white">
+      <i class="fas fa-cog fa-spin text-6xl text-blue-300 mb-4"></i>
       <p class="text-xl">Procesando datos…</p>
     </div>
   </div>
 
 <script>
-  let dashboardData = null;
-  let charts = {};
-  let activeFilters = { category: [], status: [], month: [], technician: [] };
-
-  const $ = (sel) => document.querySelector(sel);
-  const showLoading = () => $('#loadingOverlay').classList.remove('hidden');
-  const hideLoading = () => $('#loadingOverlay').classList.add('hidden');
+  let dataStore = null, charts = {};
+  const $ = (s)=>document.querySelector(s);
+  const show = (id)=>$(id).classList.remove('hidden');
+  const hide = (id)=>$(id).classList.add('hidden');
 
   Highcharts.setOptions({
-    chart: { animation: { duration: 900 }, backgroundColor: 'transparent', style: { fontFamily: 'Inter, system-ui, sans-serif'} },
-    title: { style: { color: '#fff', fontWeight: 'bold' } },
-    legend: { itemStyle: { color: '#fff' }, itemHoverStyle: { color: '#4caefe' } },
-    tooltip: { backgroundColor: 'rgba(0,0,0,.8)', style: { color: '#fff' } },
-    colors: ['#4caefe','#3dc3e8','#2dd9db','#1feeaf','#0ff3a0','#00e887','#8ef0a0','#a8e0ff']
+    chart:{ backgroundColor:'transparent', style:{ fontFamily:'Inter, system-ui, sans-serif' } },
+    title:{ text:null }, credits:{ enabled:false },
+    legend:{ itemStyle:{ color:'#e9eef5' } },
+    xAxis:{ labels:{ style:{ color:'#cfd8e3'} } },
+    yAxis:{ title:{ text:null }, labels:{ style:{ color:'#cfd8e3'} } },
+    colors:['#1aa7ff','#00c2ff','#18e0c4','#7be495','#a3e7f0','#e7f0ff']
   });
 
-  // --------- Upload -> Backend -------------
-  document.getElementById('file').addEventListener('change', async (e) => {
-    if (!e.target.files.length) return;
-    const file = e.target.files[0];
-    const form = new FormData(); form.append('file', file);
-    showLoading();
-    try {
-      const res = await fetch('/api/upload', { method: 'POST', body: form });
+  // Upload -> backend
+  document.getElementById('file').addEventListener('change', async (e)=>{
+    if(!e.target.files.length) return;
+    const form = new FormData(); form.append('file', e.target.files[0]);
+    show('#overlay');
+    try{
+      const res = await fetch('/api/upload', { method:'POST', body:form });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error || 'Error procesando CSV');
-      dashboardData = json.data;
-      sessionStorage.setItem('dashboardData', JSON.stringify(dashboardData));
-      initializeFilters(dashboardData);
-      updateDashboard(dashboardData);
-      $('#filtersSection').classList.remove('hidden');
-      $('#dashboardContent').classList.remove('hidden');
-    } catch (err) {
-      console.error(err);
-      alert('Error: ' + err.message);
-    } finally {
-      hideLoading();
-    }
+      if(!json.success) throw new Error(json.error || 'Error procesando CSV');
+      dataStore = json.data;
+      renderAll();
+    }catch(err){
+      alert('Error: '+err.message);
+    }finally{ hide('#overlay'); }
   });
 
-  // --------- Filtros -------------
-  function initializeFilters(data){
-    const filterGroups = $('#filterGroups'); filterGroups.innerHTML = '';
-    const cfg = {
-      category: { title: 'Categorías', icon: 'fas fa-tags', data: Object.keys(data.dashboard_stats.tickets_por_categoria || {}) },
-      status:   { title: 'Estados', icon: 'fas fa-tasks', data: Object.keys(data.dashboard_stats.tickets_por_estado || {}) },
-      month:    { title: 'Meses (YYYY-MM)', icon: 'fas fa-calendar', data: Object.keys(data.dashboard_stats.tendencia_mensual || {}) },
-      technician:{ title: 'Técnicos', icon: 'fas fa-user-cog', data: (data.technician_stats||[]).map(t=>t['Técnico']) }
-    };
-    Object.entries(cfg).forEach(([type, c])=>{
-      const wrap = document.createElement('div');
-      wrap.className = 'bg-white/5 p-4 rounded-xl';
-      wrap.innerHTML = `<h4 class="text-lg font-semibold mb-3"><i class="${c.icon} mr-2"></i>${c.title}</h4>
-        <div class="flex flex-wrap gap-2">${c.data.map(v=>`<button class="btn" data-type="${type}" data-value="${v}">${v}</button>`).join('')}</div>`;
-      filterGroups.appendChild(wrap);
-    });
-    filterGroups.querySelectorAll('button.btn').forEach(btn=>{
-      btn.addEventListener('click', (ev)=>{
-        const type = btn.dataset.type, value = btn.dataset.value;
-        btn.classList.toggle('bg-blue-500/30');
-        if(btn.classList.contains('bg-blue-500/30')) activeFilters[type].push(value);
-        else activeFilters[type] = activeFilters[type].filter(x=>x!==value);
-        updateActiveFilters();
-        applyFilters();
-      })
-    });
-    updateActiveFilters();
-  }
+  function renderAll(){
+    show('#kpis'); show('#charts'); show('#tableSection');
+    const s = dataStore.dashboard_stats;
+    const total = Object.values(s.tickets_por_categoria||{}).reduce((a,b)=>a+b,0);
+    const pendientes = s.tickets_por_estado?.Pendiente || s.tickets_por_estado?.pendiente || 0;
+    const resueltos  = s.tickets_por_estado?.Resuelto || s.tickets_por_estado?.resuelto || 0;
+    const totalEst = Object.values(s.tickets_por_estado||{}).reduce((a,b)=>a+b,0);
+    const eff = totalEst ? (resueltos/totalEst)*100 : 0;
 
-  function updateActiveFilters(){
-    const container = $('#activeFilters'); container.innerHTML = '';
-    Object.entries(activeFilters).forEach(([type, vals])=>{
-      vals.forEach(val=>{
-        const tag = document.createElement('div');
-        tag.className = 'px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 flex items-center gap-2';
-        tag.innerHTML = `<span>${val}</span><button class="btn px-2 py-0.5" aria-label="remove"><i class="fas fa-times"></i></button>`;
-        tag.querySelector('button').onclick = ()=>{
-          // desactivar botón de grupo
-          const b = document.querySelector(`button.btn[data-type="${type}"][data-value="${val}"]`);
-          if (b) b.classList.remove('bg-blue-500/30');
-          activeFilters[type] = activeFilters[type].filter(x=>x!==val);
-          updateActiveFilters(); applyFilters();
-        }
-        container.appendChild(tag);
-      })
-    })
-  }
+    $('#k_total').textContent = total.toLocaleString();
+    $('#k_tecnicos').textContent = dataStore.technician_stats.length.toLocaleString();
+    $('#k_pend').textContent = pendientes.toLocaleString();
+    $('#k_eff').textContent = eff.toFixed(1)+'%';
 
-  function clearAllFilters(){
-    activeFilters = { category: [], status: [], month: [], technician: [] };
-    document.querySelectorAll('#filterGroups button.btn').forEach(b=>b.classList.remove('bg-blue-500/30'));
-    updateActiveFilters(); applyFilters();
-  }
-
-  async function applyFilters(){
-    if(!dashboardData) return;
-    // No tenemos un endpoint de batch con múltiples filtros compuestos.
-    // Para mantener velocidad en front, filtramos derivando de los agregados ya cargados:
-    // Aquí sólo actualizamos widgets con recortes de agregados en memoria.
-    // Si necesitas filtrado por filas reales, crea peticiones GET a /api/tickets/filter por cada filtro.
-    updateDashboard(dashboardData, activeFilters);
-  }
-
-  // --------- Dashboard -------------
-  function animateValue(id, value, isPct=false){
-    const el = document.getElementById(id);
-    const start = parseFloat(el.textContent.replace(/[^0-9.]/g,'')) || 0;
-    const end = value;
-    const dur = 700; const t0 = performance.now();
-    function tick(t){
-      const p = Math.min(1, (t-t0)/dur);
-      const v = start + (end - start) * (1 - Math.pow(1-p, 4));
-      el.textContent = isPct ? v.toFixed(1)+'%' : Math.round(v).toLocaleString();
-      if(p<1) requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
-
-  function calcTotals(stats, filters){
-    // total tickets = suma por categoría (si hay filtro category aplica), o total general
-    const cat = stats.tickets_por_categoria || {};
-    const est = stats.tickets_por_estado || {};
-    const totalAll = Object.values(cat).reduce((a,b)=>a+b,0);
-    const totalByCat = Object.entries(cat).filter(([k])=>!filters?.category?.length || filters.category.includes(k))
-      .reduce((a, [,v])=>a+v, 0);
-    const total = filters?.category?.length ? totalByCat : totalAll;
-
-    const pendientes = est['Pendiente'] || est['pendiente'] || 0;
-    const resueltos  = est['Resuelto'] || est['resuelto'] || 0;
-    const totalEstados = Object.values(est).reduce((a,b)=>a+b,0) || 0;
-    const eficiencia = totalEstados ? (resueltos/totalEstados)*100 : 0;
-    return { total, pendientes, eficiencia };
-  }
-
-  function updateDashboard(data, filters=null){
-    const stats = data.dashboard_stats;
-    const { total, pendientes, eficiencia } = calcTotals(stats, filters);
-    animateValue('totalTickets', total);
-    animateValue('totalTecnicos', data.technician_stats.length);
-    animateValue('ticketsPendientes', pendientes);
-    animateValue('eficiencia', eficiencia, true);
-
-    // Gráficos
-    charts.categorias = initCategoryChart(stats.tickets_por_categoria, filters?.category);
-    charts.estados    = initStatusChart(stats.tickets_por_estado, filters?.status);
-    charts.tendencia  = initTrendChart  (stats.tendencia_mensual, filters?.month);
-
-    // Tabla técnicos
-    updateTechnicianTable(data.technician_stats, filters?.technician);
-  }
-
-  function initCategoryChart(obj, sel){
-    const data = Object.entries(obj||{})
-      .filter(([k])=>!sel?.length || sel.includes(k))
-      .map(([name, y])=>({ name, y }));
-    return Highcharts.chart('categoriasChart', {
-      chart: { type: 'variablepie' }, title: { text: '' },
-      series: [{ innerSize: '50%', data }], credits: { enabled:false }
-    });
-  }
-  function initStatusChart(obj, sel){
-    const data = Object.entries(obj||{})
-      .filter(([k])=>!sel?.length || sel.includes(k))
-      .map(([name, y])=>({ name, y }));
-    return Highcharts.chart('estadosChart', {
-      chart: { type: 'pie' }, title: { text: '' },
-      series: [{ data }], credits: { enabled:false }
-    });
-  }
-  function initTrendChart(obj, sel){
-    const entries = Object.entries(obj||{}).sort(([a],[b])=>a.localeCompare(b));
-    const filtered = entries.filter(([k])=>!sel?.length || sel.includes(k));
-    const cats = filtered.map(([k])=>k);
-    const vals = filtered.map(([,v])=>v);
-    return Highcharts.chart('tendenciaChart', {
-      chart: { type: 'line' }, title: { text: '' },
-      xAxis: { categories: cats, labels: { style:{ color:'#cdd6dd'} } },
-      yAxis: { title:{ text: null } },
-      series: [{ name:'Tickets', data: vals }], credits: { enabled:false }
-    });
-  }
-
-  function updateTechnicianTable(techStats, selTech){
-    const table = document.getElementById('technicianTable');
-    const thead = table.querySelector('thead tr');
-    const tbody = table.querySelector('tbody');
-    const tfoot = table.querySelector('tfoot tr');
-
-    const filtered = (selTech?.length ? techStats.filter(t=>selTech.includes(t['Técnico'])) : techStats).slice();
-
-    // meses presentes
-    const months = new Set();
-    filtered.forEach(t=>{
-      Object.keys(t).forEach(k=>{ if(k!=='Técnico' && Number.isInteger(t[k])) months.add(k); });
-    });
-    const monthsSorted = Array.from(months).sort((a,b)=>a.localeCompare(b));
-
-    // encabezado
-    thead.innerHTML = `<th class="text-left">Técnico</th>${monthsSorted.map(m=>`<th class="text-center">${m}</th>`).join('')}<th class="text-right">Total</th>`;
-
-    // cuerpo
-    tbody.innerHTML = '';
-    const monthTotals = {}; let grand = 0;
-    filtered.forEach(t=>{
-      let total = 0; const cells = monthsSorted.map(m=>{
-        const v = t[m] || 0; total += v; monthTotals[m] = (monthTotals[m]||0)+v;
-        return `<td class="text-center ${v>0?'bg-white/5':''}">${v}</td>`;
-      }).join('');
-      grand += total;
-      const tr = document.createElement('tr');
-      tr.className = 'hover:bg-white/5';
-      tr.innerHTML = `<td class="font-semibold">${t['Técnico']}</td>${cells}<td class="text-right font-bold text-blue-400">${total}</td>`;
-      tr.addEventListener('click', ()=>{
-        // toggle filtro de técnico
-        if(!activeFilters.technician.includes(t['Técnico'])) activeFilters.technician.push(t['Técnico']);
-        else activeFilters.technician = activeFilters.technician.filter(x=>x!==t['Técnico']);
-        document.querySelectorAll(`#filterGroups button.btn[data-type="technician"]`).forEach(b=>{
-          if(b.dataset.value===t['Técnico']) b.classList.toggle('bg-blue-500/30');
-        });
-        updateActiveFilters(); applyFilters();
-      });
-      tbody.appendChild(tr);
-    });
-
-    // pie
-    tfoot.innerHTML = `<td class="font-bold">Total General</td>${monthsSorted.map(m=>`<td class="text-center font-bold">${monthTotals[m]||0}</td>`).join('')}<td class="text-right font-bold text-blue-400">${grand}</td>`;
-  }
-
-  // --------- Exportaciones -------------
-  function exportChart(id){
-    const chart = Highcharts.charts.find(c=>c && c.renderTo.id===id);
-    if(chart){ chart.exportChart({ type:'image/jpeg', filename:`chart-${id}` }); }
-  }
-  function exportAllCharts(){
-    Object.entries(charts).forEach(([k,chart])=> chart && chart.exportChart({ type:'image/jpeg', filename:`chart-${k}` }));
-  }
-  function exportTableToCSV(){
-    if(!dashboardData) return;
-    const table = document.getElementById('technicianTable');
-    const headers = Array.from(table.querySelectorAll('thead th')).map(th=>th.textContent.trim());
-    const rows = Array.from(table.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td=>td.textContent.trim()));
-    const csv = [headers, ...rows].map(r=>r.join(',')).join('\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tickets_por_tecnico.csv'; a.click();
-  }
-  async function exportTableToJPG(){
-    const node = document.querySelector('.table-container');
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: '#0a0f1a' });
-    const a = document.createElement('a'); a.href = canvas.toDataURL('image/jpeg', 1.0); a.download = 'tickets_por_tecnico.jpg'; a.click();
-  }
-  function exportTableToPDF(){
-    if(!dashboardData) return;
-    const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'pt', 'a4');
-    const table = document.getElementById('technicianTable');
-    const head = [Array.from(table.querySelectorAll('thead th')).map(th=>th.textContent.trim())];
-    const body = Array.from(table.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td=>td.textContent.trim()));
-    doc.text('Tickets por Técnico', 40, 40);
-    doc.autoTable({ head, body, startY: 60, styles:{ fontSize:8, cellPadding:3 }, headStyles:{ fillColor:[76,174,254], textColor:255 }});
-    doc.save('tickets_por_tecnico.pdf');
-  }
-
-  // restaurar sesión si había datos
-  document.addEventListener('DOMContentLoaded', ()=>{
-    const saved = sessionStorage.getItem('dashboardData');
-    if(saved){
-      dashboardData = JSON.parse(saved);
-      initializeFilters(dashboardData);
-      updateDashboard(dashboardData);
-      $('#filtersSection').classList.remove('hidden');
-      $('#dashboardContent').classList.remove('hidden');
-    }
-  });
-</script>
-</body>
-</html>
+    // charts
+    charts.categ = Highcharts.chart('categChart', {
+      chart:{ type:'variablepie' },
+      series:[{ innerSize:'55%', data: Object.entries(s.tickets_por_categoria]()

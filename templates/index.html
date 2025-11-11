@@ -187,4 +187,86 @@
     // charts
     charts.categ = Highcharts.chart('categChart', {
       chart:{ type:'variablepie' },
-      series:[{ innerSize:'55%', data: Object.entries(s.tickets_por_categoria]()
+      series:[{ innerSize:'55%', data: Object.entries(s.tickets_por_categoria||{}).map(([name,y])=>({name,y})) }]
+    });
+    charts.estado = Highcharts.chart('estadoChart', {
+      chart:{ type:'pie' },
+      series:[{ data: Object.entries(s.tickets_por_estado||{}).map(([name,y])=>({name,y})) }]
+    });
+    const trendEntries = Object.entries(s.tendencia_mensual||{}).sort(([a],[b])=>a.localeCompare(b));
+    charts.trend = Highcharts.chart('trendChart', {
+      chart:{ type:'line' },
+      xAxis:{ categories: trendEntries.map(([k])=>k) },
+      series:[{ name:'Tickets', data: trendEntries.map(([,v])=>v) }]
+    });
+
+    // table
+    renderTechTable(dataStore.technician_stats);
+  }
+
+  function renderTechTable(list){
+    const table = $('#techTable');
+    const thead = table.querySelector('thead tr');
+    const tbody = table.querySelector('tbody');
+    const tfoot = table.querySelector('tfoot tr');
+
+    // meses presentes
+    const months = new Set();
+    list.forEach(t=>{
+      Object.keys(t).forEach(k=>{ if(k!=='Técnico' && Number.isInteger(t[k])) months.add(k); });
+    });
+    const monthsSorted = Array.from(months).sort((a,b)=>a.localeCompare(b));
+
+    thead.innerHTML = `<th class="text-left text-white">Técnico</th>${monthsSorted.map(m=>`<th class="text-center text-white">${m}</th>`).join('')}<th class="text-right text-white">Total</th>`;
+    tbody.innerHTML = '';
+    const monthTotals = {}; let grand = 0;
+
+    list.forEach(t=>{
+      let total = 0;
+      const cells = monthsSorted.map(m=>{
+        const v = t[m] || 0; total += v; monthTotals[m] = (monthTotals[m]||0)+v;
+        return `<td class="text-center">${v}</td>`;
+      }).join('');
+      grand += total;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${t['Técnico']}</td>${cells}<td class="text-right font-bold">${total}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    tfoot.innerHTML = `<td>Total General</td>${monthsSorted.map(m=>`<td class="text-center font-bold">${monthTotals[m]||0}</td>`).join('')}<td class="text-right font-bold">${grand}</td>`;
+  }
+
+  // Export charts
+  function exportChart(id){
+    const c = Highcharts.charts.find(x=>x && x.renderTo.id===id);
+    if(c) c.exportChart({ type:'image/jpeg', filename:`chart-${id}` });
+  }
+
+  // Export table
+  function exportTableToJPG(){
+    const node = document.querySelector('.table-wrap');
+    html2canvas(node, { scale: 2, backgroundColor:'#ffffff' }).then(canvas=>{
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/jpeg', 1.0);
+      a.download = 'tickets_por_tecnico.jpg'; a.click();
+    });
+  }
+  function exportTableToPDF(){
+    const { jsPDF } = window.jspdf; const doc = new jsPDF('l','pt','a4');
+    const table = document.getElementById('techTable');
+    const head = [Array.from(table.querySelectorAll('thead th')).map(th=>th.textContent.trim())];
+    const body = Array.from(table.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td=>td.textContent.trim()));
+    doc.text('Tickets por Técnico – SENASA', 40, 40);
+    doc.autoTable({ head, body, startY: 60, styles:{ fontSize:8, cellPadding:3 }, headStyles:{ fillColor:[13,45,98], textColor:255 }});
+    doc.save('tickets_por_tecnico.pdf');
+  }
+  function exportTableToExcel(){
+    const table = document.getElementById('techTable');
+    const wb = XLSX.utils.table_to_book(table, { sheet:"Tickets por Técnico" });
+    const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tickets_por_tecnico.xlsx'; a.click();
+  }
+</script>
+</body>
+</html>

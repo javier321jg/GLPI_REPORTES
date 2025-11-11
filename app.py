@@ -1,391 +1,380 @@
-import os
+import os, io, csv, unicodedata, traceback, logging
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import pandas as pd
 import numpy as np
-from datetime import datetime
-import logging
-from flask_cors import CORS
-import traceback
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
 CORS(app)
 
-# Configuración de logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logger = logging.getLogger("glpi")
 
-# Rutas de carpeta
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB
+
+# ------------------------- Utilidades -------------------------
+def _strip_accents(s: str) -> str:
+    return ''.join(c for c in unicodedata.normalize('NFKD', s) if not unicodedata.combining(c))
+
+def _canon(name: str) -> str:
+    """Normaliza encabezados: minúsculas, sin acentos, guiones bajos."""
+    name = _strip_accents(str(name)).lower().strip()
+    for ch in ['-', '/', '.', '(', ')']:
+        name = name.replace(ch, ' ')
+    name = '_'.join(name.split())
+    return name
+
+COLUMN_ALIASES = {
+    # clave canónica -> posibles encabezados normalizados
+    'id': {
+        'id', 'id_ticket', 'ticket', 'numero', 'nro', 'nro_ticket', 'folio', 'codigo'
+    },
+    'fecha': {
+        'fecha', 'fecha_de_apertura', 'fecha_apertura', 'apertura', 'fechacreacion', 'creado', 'created_at'
+    },
+    'estado': {
+        'estado', 'estados', 'status'
+    },
+    'prioridad': {
+        'prioridad', 'priority'
+    },
+    'tecnico': {
+        'asignado_a_tecnico', 'asignado_a_-_tecnico', 'tecnico', 'asignado', 'agente', 'responsable'
+    },
+    'categoria': {
+        'categoria', 'categoria_', 'categorias', 'category'
+    }
+}
+
+DATE_FORMATS = [
+    "%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M", "%Y-%m-%d %H:%M",
+    "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%m/%d/%Y"
+]
 
 def clean_for_json(obj):
-    """Limpia objetos para que sean serializables en JSON."""
     try:
         if isinstance(obj, dict):
             return {k: clean_for_json(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
+        if isinstance(obj, list):
             return [clean_for_json(x) for x in obj]
-        elif isinstance(obj, (pd.Index, pd.RangeIndex)):
+        if isinstance(obj, (pd.Index, pd.RangeIndex)):
             return list(obj)
-        elif isinstance(obj, pd.Series):
+        if isinstance(obj, pd.Series):
             return obj.to_dict()
-        elif isinstance(obj, np.integer):
+        if isinstance(obj, np.integer):
             return int(obj)
-        elif isinstance(obj, np.floating):
+        if isinstance(obj, np.floating):
             return float(obj)
-        elif pd.isna(obj):
+        if pd.isna(obj):
             return None
         return obj
-    except Exception as e:
-        logger.error(f"Error en clean_for_json: {str(e)}")
-        logger.error(traceback.format_exc())
+    except Exception:
+        logger.exception("clean_for_json")
         return None
 
+def _infer_delimiter(sample: bytes) -> str:
+    try:
+        dialect = csv.Sniffer().sniff(sample.decode('utf-8', 'ignore'), delimiters=";,|\t,")
+        return dialect.delimiter
+    except Exception:
+        return ';' if b';' in sample else ','
 
+def _read_csv_flex(fp: str) -> pd.DataFrame:
+    """Lee CSV con auto-delimiter y fallback de encoding."""
+    for enc in ('utf-8', 'latin-1'):
+        try:
+            with open(fp, 'rb') as f:
+                head = f.read(4096)
+            delim = _infer_delimiter(head)
+            df = pd.read_csv(fp, sep=delim, encoding=enc, engine='python')
+            if df.shape[1] == 1 and df.columns[0] and delim != ',':
+                # intentar coma si sólo tomó una columna
+                df = pd.read_csv(fp, sep=',', encoding=enc, engine='python')
+            return df
+        except Exception:
+            continue
+    # último intento de pandas infer
+    return pd.read_csv(fp, sep=None, engine='python')
+
+def _map_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Mapea encabezados reales -> canónicos soportando alias y tildes."""
+    original_cols = list(df.columns)
+    norm_map = {_canon(c): c for c in df.columns}
+
+    mapped = {}
+    for canon, aliases in COLUMN_ALIASES.items():
+        found = None
+        for alias in aliases:
+            if alias in norm_map:
+                found = norm_map[alias]
+                break
+        if found is None:
+            # si falta ID, generamos incremental; otras pueden quedar nulas
+            if canon == 'id':
+                df['__auto_id__'] = range(1, len(df) + 1)
+                mapped[canon] = '__auto_id__'
+            else:
+                mapped[canon] = None
+        else:
+            mapped[canon] = found
+
+    # renombrar a canónicos cuando existan
+    rename_dict = {mapped[k]: k for k in mapped if mapped[k] is not None}
+    df = df.rename(columns=rename_dict)
+
+    # asegurar columnas canónicas
+    for k in COLUMN_ALIASES.keys():
+        if k not in df.columns:
+            df[k] = np.nan
+
+    # fecha -> datetime robusto
+    if df['fecha'].notna().any():
+        # intento masivo con dayfirst=True
+        dt = pd.to_datetime(df['fecha'], errors='coerce', dayfirst=True, infer_datetime_format=True)
+        # rellenar los NaT probando formatos manuales
+        if dt.isna().any():
+            raw = df['fecha'].astype(str)
+            parsed = []
+            for val in raw:
+                val = val.strip()
+                ok = None
+                for fmt in DATE_FORMATS:
+                    try:
+                        ok = datetime.strptime(val, fmt)
+                        break
+                    except Exception:
+                        continue
+                parsed.append(ok)
+            dt2 = pd.to_datetime(parsed, errors='coerce')
+            dt = dt.fillna(dt2)
+        df['fecha'] = dt
+
+    # normalizaciones de texto
+    for col in ('estado', 'prioridad', 'tecnico', 'categoria'):
+        df[col] = df[col].astype(str).replace({'nan': None})
+        df[col] = df[col].apply(lambda x: None if x in (None, '', 'None') else x)
+
+    # métricas derivadas
+    df['anio'] = df['fecha'].dt.year
+    df['mes_nombre'] = df['fecha'].dt.month_name(locale='es_ES') if hasattr(pd, 'options') else df['fecha'].dt.month_name()
+    df['mes_anio'] = df['fecha'].dt.strftime('%Y-%m')
+
+    # Log de mapeo para depuración
+    logger.info("Columnas originales: %s", original_cols)
+    logger.info("Columnas canónicas presentes: %s", list(df.columns))
+    return df
+
+# ------------------------- Analizador -------------------------
 class GLPIAnalyzer:
-    def __init__(self, df):
-        self.df = df
-        self.process_dataframe()
+    def __init__(self, df: pd.DataFrame):
+        self.df = _map_columns(df).copy()
+        self._fill_defaults()
 
-    def process_dataframe(self):
-        """Procesa el DataFrame inicial: convierte fechas, añade columnas de mes/año, etc."""
-        try:
-            logger.info("Iniciando procesamiento del DataFrame")
-            
-            # Convertir la columna 'Fecha de apertura' a tipo fecha
-            self.df['Fecha de apertura'] = pd.to_datetime(
-                self.df['Fecha de apertura'],
-                format='%d-%m-%Y %H:%M',
-                errors='coerce'
-            )
+    def _fill_defaults(self):
+        if self.df.empty:
+            return
+        self.df['estado'] = self.df['estado'].fillna('Sin Estado')
+        self.df['prioridad'] = self.df['prioridad'].fillna('Normal')
+        self.df['tecnico'] = self.df['tecnico'].fillna('Sin Asignar')
+        self.df['categoria'] = self.df['categoria'].fillna('Sin Categoría')
+        if 'id' in self.df.columns:
+            self.df['id'] = pd.to_numeric(self.df['id'], errors='coerce').fillna(0).astype(int)
 
-            # Extraer Mes y Año
-            self.df['Mes'] = self.df['Fecha de apertura'].dt.strftime('%B')
-            self.df['Año'] = self.df['Fecha de apertura'].dt.year
-            self.df['Mes_Año'] = self.df['Fecha de apertura'].dt.strftime('%Y-%m')
-
-            # Llenar nulos
-            self.df = self.df.fillna({
-                'Estados': 'Sin Estado',
-                'Prioridad': 'Normal',
-                'Asignado a - Técnico': 'Sin Asignar',
-                'Categoría': 'Sin Categoría',
-                'ID': 0
-            })
-
-            logger.info("DataFrame procesado exitosamente")
-        except Exception as e:
-            logger.error(f"Error en process_dataframe: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise
-
-    def get_technician_monthly_stats(self):
-        """Devuelve la lista de diccionarios con tickets por Técnico y Mes."""
-        try:
-            if self.df.empty:
-                logger.warning("DataFrame está vacío")
-                return []
-
-            monthly_stats = self.df.groupby(['Asignado a - Técnico', 'Mes'])['ID'].count().reset_index()
-
-            # Crear pivot table con filas = técnico, columnas = mes
-            pivot_data = pd.pivot_table(
-                monthly_stats,
-                values='ID',
-                index=['Asignado a - Técnico'],
-                columns=['Mes'],
-                fill_value=0
-            )
-
-            # Convertir a lista de diccionarios para el frontend
-            result = []
-            for idx in pivot_data.index:
-                row_dict = {'Técnico': str(idx)}
-                for col in pivot_data.columns:
-                    row_dict[str(col)] = int(pivot_data.loc[idx, col])
-                result.append(row_dict)
-            return result
-
-        except Exception as e:
-            logger.error(f"Error en get_technician_monthly_stats: {str(e)}")
-            logger.error(traceback.format_exc())
-            return []
-
-    def get_dashboard_stats(self):
-        """
-        Genera estadísticas generales: 
-        - total_tickets
-        - total_tecnicos
-        - tickets_por_estado
-        - tickets_por_prioridad
-        - tickets_por_categoria
-        - tendencia_mensual
-        - top_tecnicos
-        """
-        try:
-            if self.df.empty:
-                return {
-                    'total_tickets': 0,
-                    'total_tecnicos': 0,
-                    'tickets_por_estado': {},
-                    'tickets_por_prioridad': {},
-                    'tickets_por_categoria': {},
-                    'tendencia_mensual': {},
-                    'top_tecnicos': {}
-                }
-            
-            # Contar tickets totales, etc.
-            total_tickets = len(self.df)
-            total_tecnicos = self.df['Asignado a - Técnico'].nunique()
-            tickets_por_estado = self.df['Estados'].value_counts().to_dict()
-            tickets_por_prioridad = self.df['Prioridad'].value_counts().to_dict()
-            tickets_por_categoria = self.df['Categoría'].value_counts().to_dict()
-            tendencia_mensual = self.df.groupby('Mes_Año')['ID'].count().to_dict()
-            
-            # Top 10 técnicos con más tickets
-            top_tec = (
-                self.df.groupby('Asignado a - Técnico')['ID']
-                .count()
-                .sort_values(ascending=False)
-                .head(10)
-                .to_dict()
-            )
-
-            stats = {
-                'total_tickets': total_tickets,
-                'total_tecnicos': total_tecnicos,
-                'tickets_por_estado': tickets_por_estado,
-                'tickets_por_prioridad': tickets_por_prioridad,
-                'tickets_por_categoria': tickets_por_categoria,
-                'tendencia_mensual': tendencia_mensual,
-                'top_tecnicos': top_tec
+    def dashboard_stats(self):
+        if self.df.empty:
+            return {
+                'total_tickets': 0,
+                'total_tecnicos': 0,
+                'tickets_por_estado': {},
+                'tickets_por_prioridad': {},
+                'tickets_por_categoria': {},
+                'tendencia_mensual': {},
+                'top_tecnicos': {}
             }
 
-            return clean_for_json(stats)
+        total_tickets = len(self.df)
+        total_tecnicos = self.df['tecnico'].nunique()
+        tickets_por_estado = self.df['estado'].value_counts(dropna=False).to_dict()
+        tickets_por_prioridad = self.df['prioridad'].value_counts(dropna=False).to_dict()
+        tickets_por_categoria = self.df['categoria'].value_counts(dropna=False).to_dict()
 
-        except Exception as e:
-            logger.error(f"Error en get_dashboard_stats: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise
+        # Tendencia por mes-año: contar por mes_anio
+        tendencia_mensual = (
+            self.df.dropna(subset=['mes_anio'])
+                   .groupby('mes_anio')['id'].count()
+                   .sort_index()
+                   .to_dict()
+        )
 
-    def get_tickets_by_filter(self, filter_type, filter_value):
-        """
-        Obtiene tickets filtrados según diferentes criterios
-        """
-        try:
-            if self.df.empty:
-                return []
-                
-            filtered_df = self.df.copy()
-            
-            if filter_type == 'category':
-                filtered_df = filtered_df[filtered_df['Categoría'] == filter_value]
-            elif filter_type == 'status':
-                filtered_df = filtered_df[filtered_df['Estados'] == filter_value]
-            elif filter_type == 'tech':
-                filtered_df = filtered_df[filtered_df['Asignado a - Técnico'] == filter_value]
-            elif filter_type == 'month':
-                filtered_df = filtered_df[filtered_df['Mes_Año'] == filter_value]
-            elif filter_type == 'pending':
-                filtered_df = filtered_df[filtered_df['Estados'] == 'Pendiente']
-            elif filter_type == 'efficiency':
-                filtered_df = filtered_df[filtered_df['Estados'] == 'Resuelto']
-            
-            # Convertir a formato de lista de diccionarios para JSON
-            tickets = filtered_df.to_dict('records')
-            
-            # Limpiar datos para JSON
-            return clean_for_json(tickets)
-            
-        except Exception as e:
-            logger.error(f"Error en get_tickets_by_filter: {str(e)}")
-            logger.error(traceback.format_exc())
+        top_tecnicos = (
+            self.df.groupby('tecnico')['id']
+                   .count()
+                   .sort_values(ascending=False)
+                   .head(10)
+                   .to_dict()
+        )
+
+        return clean_for_json({
+            'total_tickets': total_tickets,
+            'total_tecnicos': total_tecnicos,
+            'tickets_por_estado': tickets_por_estado,
+            'tickets_por_prioridad': tickets_por_prioridad,
+            'tickets_por_categoria': tickets_por_categoria,
+            'tendencia_mensual': tendencia_mensual,
+            'top_tecnicos': top_tecnicos
+        })
+
+    def technician_monthly_stats(self):
+        if self.df.empty:
             return []
+        # Conteo por técnico y mes_nombre
+        tmp = self.df.copy()
+        tmp['mes_nombre'] = tmp['fecha'].dt.month_name(locale='es_ES') if hasattr(pd, 'options') else tmp['fecha'].dt.month_name()
+        monthly = tmp.groupby(['tecnico', 'mes_nombre'])['id'].count().reset_index()
+        pivot = monthly.pivot_table(index='tecnico', columns='mes_nombre', values='id', fill_value=0)
+        result = []
+        for tech in pivot.index:
+            row = {'Técnico': str(tech)}
+            for col in sorted(pivot.columns, key=lambda m: m.lower()):
+                row[str(col)] = int(pivot.loc[tech, col])
+            result.append(row)
+        return result
 
-    def get_ticket_details(self, ticket_id):
-        """
-        Obtiene detalles de un ticket específico
-        """
-        try:
-            if self.df.empty:
-                return None
-                
-            ticket = self.df[self.df['ID'] == int(ticket_id)]
-            if ticket.empty:
-                return None
-                
-            return clean_for_json(ticket.iloc[0].to_dict())
-            
-        except Exception as e:
-            logger.error(f"Error en get_ticket_details: {str(e)}")
-            logger.error(traceback.format_exc())
+    def filter_tickets(self, filter_type: str, filter_value: str):
+        if self.df.empty:
+            return []
+        df = self.df.copy()
+        if filter_type == 'category':
+            df = df[df['categoria'] == filter_value]
+        elif filter_type == 'status':
+            df = df[df['estado'] == filter_value]
+        elif filter_type == 'tech':
+            df = df[df['tecnico'] == filter_value]
+        elif filter_type == 'month':
+            # acepta 'YYYY-MM' o nombre de mes en español
+            mask = (df['mes_anio'] == filter_value) | (df['mes_nombre'] == filter_value)
+            df = df[mask]
+        elif filter_type == 'pending':
+            df = df[df['estado'].str.lower() == 'pendiente']
+        elif filter_type == 'efficiency':
+            df = df[df['estado'].str.lower() == 'resuelto']
+
+        # columnas de salida amigables
+        out = df[['id', 'fecha', 'estado', 'prioridad', 'tecnico', 'categoria']].copy()
+        out = out.rename(columns={
+            'id': 'ID',
+            'fecha': 'Fecha',
+            'estado': 'Estado',
+            'prioridad': 'Prioridad',
+            'tecnico': 'Tecnico',
+            'categoria': 'Categoria'
+        })
+        return clean_for_json(out.to_dict('records'))
+
+    def ticket_details(self, ticket_id: int):
+        if self.df.empty:
             return None
+        row = self.df[self.df['id'] == int(ticket_id)]
+        if row.empty:
+            return None
+        out = row.iloc[0][['id', 'fecha', 'estado', 'prioridad', 'tecnico', 'categoria']].rename({
+            'id': 'ID',
+            'fecha': 'Fecha',
+            'estado': 'Estado',
+            'prioridad': 'Prioridad',
+            'tecnico': 'Tecnico',
+            'categoria': 'Categoria'
+        })
+        return clean_for_json(out.to_dict())
 
-
+# ------------------------- Rutas -------------------------
 @app.route('/')
+@app.route('/index.html')
 def index():
-    """Renderiza la plantilla base."""
     return render_template('index.html')
 
+@app.route('/ticket-details.html')
+def ticket_details_page():
+    return render_template('ticket-details.html')
+
+@app.errorhandler(404)
+def not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'Endpoint no encontrado', 'path': request.path}), 404
+    try:
+        return render_template('index.html')
+    except Exception:
+        return jsonify({'success': False, 'error': 'Página no encontrada'}), 404
 
 @app.route('/api/upload', methods=['POST'])
-def upload_file():
-    """
-    Endpoint al que el formulario JS hace POST con el CSV.
-    Devuelve JSON con:
-      - technician_stats
-      - dashboard_stats
-    """
+def upload():
     try:
         if 'file' not in request.files:
             return jsonify({'success': False, 'error': 'No file part'}), 400
-        
         file = request.files['file']
-        if file.filename == '':
+        if not file.filename:
             return jsonify({'success': False, 'error': 'No selected file'}), 400
-        
-        if file:
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
-            try:
-                file.save(filepath)
-                # Leer el CSV con separador ';'
-                df = pd.read_csv(filepath, sep=';', encoding='utf-8')
+        fname = secure_filename(file.filename)
+        fpath = os.path.join(app.config['UPLOAD_FOLDER'], fname)
+        file.save(fpath)
 
-                if df.empty:
-                    return jsonify({'success': False, 'error': 'El archivo CSV está vacío'}), 400
-                
-                # Guardar el analizador en la aplicación
-                app.current_analyzer = GLPIAnalyzer(df)
-                
-                response_data = {
-                    'success': True,
-                    'data': {
-                        'technician_stats': app.current_analyzer.get_technician_monthly_stats(),
-                        'dashboard_stats': app.current_analyzer.get_dashboard_stats()
-                    }
-                }
+        try:
+            df = _read_csv_flex(fpath)
+            if df.empty:
+                return jsonify({'success': False, 'error': 'CSV vacío'}), 400
 
-                return jsonify(clean_for_json(response_data))
-
-            except Exception as e:
-                logger.error(f"Error processing file: {str(e)}")
-                logger.error(traceback.format_exc())
-                return jsonify({'success': False, 'error': str(e)}), 500
-            
-            finally:
-                if os.path.exists(filepath):
-                    os.remove(filepath)
-
-        return jsonify({'success': False, 'error': 'Invalid file'}), 400
-
-    except Exception as e:
-        logger.error(f"Error in upload_file: {str(e)}")
-        logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/tickets/filter', methods=['GET'])
-def filter_tickets():
-    """
-    Endpoint para filtrar tickets según diferentes criterios
-    Parámetros URL: type (category, status, tech, month) y value
-    """
-    try:
-        filter_type = request.args.get('type')
-        filter_value = request.args.get('value')
-        
-        if not filter_type or not filter_value:
-            return jsonify({'success': False, 'error': 'Missing parameters'}), 400
-            
-        # Verificar si hay datos cargados
-        if not hasattr(app, 'current_analyzer'):
-            return jsonify({'success': False, 'error': 'No data loaded'}), 400
-            
-        tickets = app.current_analyzer.get_tickets_by_filter(filter_type, filter_value)
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'tickets': tickets,
-                'total': len(tickets)
+            analyzer = GLPIAnalyzer(df)
+            app.current_analyzer = analyzer
+            payload = {
+                'technician_stats': analyzer.technician_monthly_stats(),
+                'dashboard_stats': analyzer.dashboard_stats()
             }
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in filter_tickets: {str(e)}")
-        logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': str(e)}), 500
-# Añade estas rutas después de la ruta '/'
+            return jsonify({'success': True, 'data': clean_for_json(payload)})
+        finally:
+            try:
+                os.remove(fpath)
+            except Exception:
+                pass
+    except Exception as ex:
+        logger.exception("upload")
+        return jsonify({'success': False, 'error': str(ex)}), 500
 
-@app.route('/ticket-details.html')
-def ticket_details():
-    """Renderiza la página de detalles de tickets"""
-    return render_template('ticket-details.html')
-
-@app.route('/index.html')
-def index_html():
-    """Ruta alternativa para index.html"""
-    return render_template('index.html')
-
-# Modifica el error handler 404 para que devuelva la página en lugar de JSON
-@app.errorhandler(404)
-def page_not_found(e):
-    """Manejador personalizado para errores 404"""
-    app.logger.error(f"Página no encontrada: {request.url}")
-    # Si es una solicitud API, devolver JSON
-    if request.path.startswith('/api/'):
-        return jsonify({
-            'success': False,
-            'error': 'Endpoint no encontrado',
-            'path': request.path
-        }), 404
-    # Si es una solicitud web normal, intentar renderizar la página
+@app.route('/api/tickets/filter')
+def filter_tickets():
     try:
-        if 'ticket-details.html' in request.path:
-            return render_template('ticket-details.html')
-        return render_template('index.html')
-    except:
-        return jsonify({
-            'success': False,
-            'error': 'Página no encontrada',
-            'path': request.path
-        }), 404
+        ftype = request.args.get('type')
+        fvalue = request.args.get('value')
+        if not ftype or (ftype not in {'pending', 'efficiency'} and not fvalue):
+            return jsonify({'success': False, 'error': 'Parámetros incompletos'}), 400
+        if not hasattr(app, 'current_analyzer'):
+            return jsonify({'success': False, 'error': 'No data loaded'}), 400
 
-@app.route('/api/tickets/<int:ticket_id>', methods=['GET'])
-def get_ticket(ticket_id):
-    """
-    Endpoint para obtener detalles de un ticket específico
-    """
+        data = app.current_analyzer.filter_tickets(ftype, fvalue)
+        return jsonify({'success': True, 'data': {'tickets': data, 'total': len(data)}})
+    except Exception as ex:
+        logger.exception("filter_tickets")
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+@app.route('/api/tickets/<int:ticket_id>')
+def get_ticket(ticket_id: int):
     try:
         if not hasattr(app, 'current_analyzer'):
             return jsonify({'success': False, 'error': 'No data loaded'}), 400
-            
-        ticket = app.current_analyzer.get_ticket_details(ticket_id)
-        if not ticket:
+        t = app.current_analyzer.ticket_details(ticket_id)
+        if not t:
             return jsonify({'success': False, 'error': 'Ticket not found'}), 404
-            
-        return jsonify({
-            'success': True,
-            'data': {'ticket': ticket}
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in get_ticket: {str(e)}")
-        logger.error(traceback.format_exc())
-        return jsonify({'success': False, 'error': str(e)}), 500
-
+        return jsonify({'success': True, 'data': {'ticket': t}})
+    except Exception as ex:
+        logger.exception("get_ticket")
+        return jsonify({'success': False, 'error': str(ex)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

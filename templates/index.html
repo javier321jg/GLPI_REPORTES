@@ -348,7 +348,7 @@
         const v = t[m] || 0; 
         total += v; 
         monthTotals[m] = (monthTotals[m]||0)+v;
-        const cellClass = v === 0 ? 'cell-zero' : 'cell-colored';
+        const cellClass = v >= 6 ? 'cell-colored' : 'cell-zero';
         return `<td class="text-center ${cellClass}">${v}</td>`;
       }).join('');
       grand += total;
@@ -359,7 +359,7 @@
 
     const footerCells = monthsSorted.map(m=>{
       const val = monthTotals[m]||0;
-      const cellClass = val === 0 ? 'cell-zero' : 'cell-colored';
+      const cellClass = val >= 6 ? 'cell-colored' : 'cell-zero';
       return `<td class="text-center font-bold ${cellClass}">${val}</td>`;
     }).join('');
     tfoot.innerHTML = `<td>Total General</td>${footerCells}<td class="text-right font-bold">${grand}</td>`;
@@ -388,6 +388,7 @@
     logoImg.src = 'https://www.gob.pe/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1MDAsInB1ciI6ImJsb2JfaWQifX0=--d56e8d89845af7a460ccbe0d65ed319826301586/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOltudWxsLDQ4XX0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--830247c4bafe7cadca50817d8559bf1a09e3aa28/Sin%20ti%CC%81tulo-1-01%20(1).png';
     logoImg.style.height = '40px';
     logoImg.style.width = 'auto';
+    logoImg.style.backgroundColor = 'white';
 
     const title = document.createElement('h2');
     title.textContent = 'Reporte GLPI – SENASA';
@@ -405,7 +406,7 @@
 
     document.body.appendChild(container);
 
-    html2canvas(container, { scale: 2, backgroundColor:'#ffffff', logging: false }).then(canvas=>{
+    html2canvas(container, { scale: 2, backgroundColor:'#ffffff', logging: false, useCORS: true, allowTaint: true }).then(canvas=>{
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/jpeg', 1.0);
       a.download = 'tickets_por_tecnico.jpg';

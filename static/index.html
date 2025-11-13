@@ -20,33 +20,153 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
 
 <style>
-  :root { --azul:#0d2d62; --azul2:#113b7f; --stroke: rgba(255,255,255,.08); }
-  body{ background: #0a0f1a; color:#e9eef5; font-family: Inter, system-ui, sans-serif; }
-  header{ background: linear-gradient(90deg, var(--azul), var(--azul2)); }
-  .panel{ background:#0f1625; border:1px solid var(--stroke); border-radius:16px; }
-  .btn{ padding:.6rem .9rem; border-radius:10px; background:#113b7f; color:#fff; }
-  .btn:hover{ filter: brightness(1.08); }
-  .upload-zone{ border:2px dashed rgba(255,255,255,.2); padding:2rem; border-radius:14px; cursor:pointer; }
-  .upload-zone:hover{ background:rgba(17,59,127,.15); }
+  :root { 
+    --azul:#0d2d62; 
+    --azul2:#113b7f; 
+    --turquesa:#00d4ff;
+    --accent:#ff6b35;
+    --stroke: rgba(255,255,255,.08); 
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body{ 
+    background: linear-gradient(135deg, #0a0f1a 0%, #0f1b2e 100%); 
+    color:#e9eef5; 
+    font-family: Inter, system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  
+  header{ 
+    background: linear-gradient(135deg, var(--azul) 0%, var(--azul2) 50%, #1a4d7f 100%);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(0,212,255,.3);
+  }
+  
+  .senasa-logo {
+    background: rgba(255,255,255,0.95);
+    padding: 0.3rem 0.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .panel{ 
+    background: rgba(15,22,37,0.8);
+    border:1px solid var(--stroke); 
+    border-radius:16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+  
+  .panel:hover {
+    border-color: rgba(0,212,255,.3);
+    box-shadow: 0 8px 24px rgba(0,212,255,.1);
+  }
+  
+  .btn{ 
+    padding:.6rem .9rem; 
+    border-radius:10px; 
+    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    color:#000; 
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .btn:hover{ 
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,212,255,.4);
+    filter: brightness(1.1);
+  }
+  
+  .upload-zone{ 
+    border:2px dashed var(--turquesa); 
+    padding:2rem; 
+    border-radius:14px; 
+    cursor:pointer;
+    background: rgba(0,212,255,.05);
+    transition: all 0.3s ease;
+  }
+  
+  .upload-zone:hover{ 
+    background:rgba(0,212,255,.15);
+    border-color: var(--accent);
+    transform: scale(1.01);
+  }
+  
   .chart-container{ width:100%; height:360px; }
+  
+  /* KPI Cards */
+  .kpi-card {
+    background: linear-gradient(135deg, rgba(0,212,255,.1), rgba(0,212,255,.05));
+    border: 1px solid rgba(0,212,255,.2);
+    border-radius: 14px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .kpi-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--turquesa);
+    box-shadow: 0 8px 24px rgba(0,212,255,.15);
+  }
+  
+  .kpi-label {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 700;
+    opacity: 0.8;
+    letter-spacing: 0.05em;
+  }
+  
+  .kpi-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--turquesa), #00a8cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-top: 0.5rem;
+  }
+  
   /* Tabla estilo SENASA */
   table{ width:100%; border-collapse: collapse; }
-  thead th{ background: var(--azul); color:#fff; position: sticky; top:0; z-index:1; }
+  thead th{ 
+    background: linear-gradient(135deg, var(--azul), #1a4d7f);
+    color:#fff; 
+    position: sticky; 
+    top:0; 
+    z-index:1;
+    font-weight: 700;
+  }
   th, td{ padding:.7rem .8rem; border-bottom: 1px solid #e5e7eb; color:#0a0f1a; }
   tbody tr:nth-child(odd){ background:#ffffff; }
   tbody tr:nth-child(even){ background:#f8fafc; }
-  tfoot td{ background:#eaf2ff; color:#0a0f1a; font-weight:700; }
-  .table-wrap{ background:#ffffff; border-radius:12px; overflow:auto; }
+  tbody tr:hover { background: #e6f2ff; }
+  tfoot td{ background: linear-gradient(135deg, #eaf2ff, #d4e6ff); color:#0a0f1a; font-weight:700; }
+  .table-wrap{ background:#ffffff; border-radius:12px; overflow:auto; box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+  
+  /* Loading */
+  .spinner {
+    background: linear-gradient(135deg, var(--turquesa), var(--accent));
+  }
 </style>
 </head>
 <body class="pb-12">
   <header class="p-5">
     <div class="max-w-7xl mx-auto flex items-center gap-4">
-      <img src="https://s3.amazonaws.com/documentos.api.gob.pe/9smhbpmapffwdhy4kkc6mhwz8tvf?response-content-disposition=inline%3B%20filename%3D%22Sin%20ti%253Ftulo-1-01%20%25281%2529.png%22%3B%20filename%2A%3DUTF-8%27%27Sin%2520ti%25CC%2581tulo-1-01%2520%25281%2529.png&response-content-type=image%2Fpng&X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAJREKOSPKMJFYJDAQ%2F20251111%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20251111T032430Z&X-Amz-Expires=300&X-Amz-SignedHeaders=host&X-Amz-Signature=c69efa5a234b1a50a7f5a7447321a7b4950da204cc2bed78530767256864094a"
-           alt="SENASA" class="h-10 w-auto" onerror="this.style.display='none'"/>
-      <div>
-        <h1 class="text-2xl md:text-3xl font-extrabold tracking-wide">Reportes GLPI – SENASA</h1>
-        <p class="opacity-80">Sistema de análisis de tickets</p>
+      <div class="senasa-logo">
+        <img src="https://www.gob.pe/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1MDAsInB1ciI6ImJsb2JfaWQifX0=--d56e8d89845af7a460ccbe0d65ed319826301586/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOltudWxsLDQ4XX0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--830247c4bafe7cadca50817d8559bf1a09e3aa28/Sin%20ti%CC%81tulo-1-01%20(1).png"
+             alt="SENASA" class="h-8 w-auto"/>
+      </div>
+      <div class="flex-1">
+        <h1 class="text-3xl font-extrabold tracking-wide bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">Reportes GLPI – SENASA</h1>
+        <p class="opacity-80 text-sm">Sistema inteligente de análisis de tickets</p>
       </div>
     </div>
   </header>
@@ -54,33 +174,33 @@
   <main class="max-w-7xl mx-auto p-6 space-y-8">
     <!-- Subida -->
     <section class="panel p-6">
-      <form id="uploadForm" class="max-w-xl mx-auto">
+      <form id="uploadForm" class="max-w-2xl mx-auto">
         <div class="upload-zone text-center" onclick="document.getElementById('file').click()">
-          <i class="fas fa-cloud-upload-alt text-5xl mb-4 text-blue-300"></i>
+          <i class="fas fa-cloud-upload-alt text-6xl mb-4 text-cyan-300"></i>
           <input id="file" type="file" name="file" accept=".csv" class="hidden" />
           <p class="text-lg font-semibold text-white/90">Arrastra tu CSV o haz clic para seleccionar</p>
-          <p class="text-sm text-white/70 mt-1">Encabezados soportados: ID/Id, Fecha, Estado, Prioridad, Técnico/Tecnico, Categoría/Categoria</p>
+          <p class="text-sm text-white/70 mt-2">Encabezados: ID, Fecha, Estado, Prioridad, Técnico, Categoría</p>
         </div>
       </form>
     </section>
 
     <!-- KPIs -->
     <section id="kpis" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 hidden">
-      <div class="panel p-5">
-        <div class="text-white/70 text-sm">Total Tickets</div>
-        <div id="k_total" class="text-4xl font-extrabold">0</div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Tickets</div>
+        <div id="k_total" class="kpi-value">0</div>
       </div>
-      <div class="panel p-5">
-        <div class="text-white/70 text-sm">Total Técnicos</div>
-        <div id="k_tecnicos" class="text-4xl font-extrabold">0</div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Técnicos</div>
+        <div id="k_tecnicos" class="kpi-value">0</div>
       </div>
-      <div class="panel p-5">
-        <div class="text-white/70 text-sm">Pendientes</div>
-        <div id="k_pend" class="text-4xl font-extrabold">0</div>
+      <div class="kpi-card">
+        <div class="kpi-label">Pendientes</div>
+        <div id="k_pend" class="kpi-value">0</div>
       </div>
-      <div class="panel p-5">
-        <div class="text-white/70 text-sm">Eficiencia</div>
-        <div id="k_eff" class="text-4xl font-extrabold">0%</div>
+      <div class="kpi-card">
+        <div class="kpi-label">Eficiencia</div>
+        <div id="k_eff" class="kpi-value">0%</div>
       </div>
     </section>
 
@@ -134,8 +254,10 @@
   <!-- Overlay -->
   <div id="overlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
     <div class="text-center text-white">
-      <i class="fas fa-cog fa-spin text-6xl text-blue-300 mb-4"></i>
-      <p class="text-xl">Procesando datos…</p>
+      <div class="relative w-20 h-20 mx-auto mb-4">
+        <div class="spinner absolute inset-0 rounded-full opacity-75" style="animation: spin 3s linear infinite;"></div>
+      </div>
+      <p class="text-xl font-semibold">Procesando datos…</p>
     </div>
   </div>
 
@@ -151,7 +273,7 @@
     legend:{ itemStyle:{ color:'#e9eef5' } },
     xAxis:{ labels:{ style:{ color:'#cfd8e3'} } },
     yAxis:{ title:{ text:null }, labels:{ style:{ color:'#cfd8e3'} } },
-    colors:['#1aa7ff','#00c2ff','#18e0c4','#7be495','#a3e7f0','#e7f0ff']
+    colors:['#00d4ff','#00f5ff','#00e6e6','#00d4a8','#00c2ff','#a8d4ff']
   });
 
   // Upload -> backend

@@ -3,206 +3,552 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detalles de Tickets</title>
+    <title>Detalles de Tickets - GLPI Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/timeline.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --gradient-1: linear-gradient(135deg, #00d4ff, #00a8cc);
+            --gradient-2: linear-gradient(135deg, #00e6e6, #00d4a8);
+            --gradient-3: linear-gradient(135deg, #00f5ff, #00d4ff);
+            --gradient-4: linear-gradient(135deg, #a8d4ff, #00c2ff);
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0f1a 0%, #0f1b2e 100%);
+            min-height: 100vh;
+            color: white;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
         .glass {
-            background: rgba(37, 99, 235, 0.1);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(147, 197, 253, 0.18);
+            background: rgba(15,22,37,0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,212,255,.3);
             border-radius: 16px;
-            box-shadow: 0 8px 32px 0 rgba(30, 64, 175, 0.37);
-        }
-
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            display: inline-block;
-        }
-
-        .status-assigned { background: rgba(234, 179, 8, 0.4); }
-        .status-resolved { background: rgba(34, 197, 94, 0.4); }
-        .status-pending { background: rgba(249, 115, 22, 0.4); }
-
-        .priority-high { background: rgba(239, 68, 68, 0.4); }
-        .priority-medium { background: rgba(234, 179, 8, 0.4); }
-        .priority-low { background: rgba(34, 197, 94, 0.4); }
-
-        tr:hover {
-            background: rgba(37, 99, 235, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             transition: all 0.3s ease;
+        }
+
+        .glass:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0,212,255,.15);
+            border-color: rgba(0,212,255,.5);
+        }
+
+        header {
+            background: linear-gradient(135deg, #0d2d62 0%, #113b7f 50%, #1a4d7f 100%);
+            border-bottom: 2px solid rgba(0,212,255,.3);
+        }
+
+        .senasa-logo {
+            background: rgba(255,255,255,0.95);
+            padding: 0.3rem 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .stats-card {
+            color: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-radius: 14px;
+            padding: 1.5rem;
+            border: 1px solid rgba(0,212,255,.2);
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(0,212,255,.5);
+        }
+
+        .stats-card-1 { background: var(--gradient-1); }
+        .stats-card-2 { background: var(--gradient-2); }
+        .stats-card-3 { background: var(--gradient-3); }
+        .stats-card-4 { background: var(--gradient-4); }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: none;
+            color: #000;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,212,255,.4);
+            filter: brightness(1.1);
+        }
+
+        .chart-container {
+            min-height: 400px;
+            margin: 1rem 0;
+        }
+
+        .large-chart {
+            min-height: 500px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+            padding: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+        }
+
+        th {
+            background: linear-gradient(135deg, #0d2d62, #113b7f);
+            font-weight: 600;
+            color: white;
+            border-bottom: 2px solid rgba(0,212,255,.4);
+        }
+
+        td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        tbody tr:hover {
+            background: rgba(0,212,255,.1);
+            cursor: pointer;
+        }
+
+        .loading {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            animation: spin 1.5s linear infinite;
+            background: linear-gradient(135deg, #00d4ff, #ff6b35);
+        }
+
+        .export-preview {
+            border: 2px solid rgba(0,212,255,.3);
+            border-radius: 12px;
+            padding: 1rem;
+            background: white;
+            color: #0a0f1a;
+            margin-top: 1rem;
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #0d2d62, #113b7f);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .preview-logo {
+            background: white;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            height: auto;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500 min-h-screen p-6">
-    <div class="max-w-7xl mx-auto space-y-6">
-        <div class="glass p-8">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h1 id="technicianName" class="text-2xl font-bold text-white mb-2">Tickets de [Nombre Técnico]</h1>
-                    <p id="technicianStats" class="text-blue-200"></p>
+<body class="p-6">
+    <header class="mb-8">
+        <div class="container mx-auto max-w-7xl p-5">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="senasa-logo">
+                        <img src="https://www.gob.pe/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1MDAsInB1ciI6ImJsb2JfaWQifX0=--d56e8d89845af7a460ccbe0d65ed319826301586/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOltudWxsLDQ4XX0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--830247c4bafe7cadca50817d8559bf1a09e3aa28/Sin%20ti%CC%81tulo-1-01%20(1).png"
+                             alt="SENASA" class="h-8 w-auto"/>
+                    </div>
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">Reportes Detallados – SENASA</h1>
                 </div>
-                <button onclick="window.location.href='index.html'" 
-                        class="px-4 py-2 bg-blue-600/30 hover:bg-blue-600/50 rounded-lg text-white transition-all">
+                <button onclick="window.location.href='index.html'" class="btn">
+                    <i class="fas fa-arrow-left"></i>
                     Volver
                 </button>
             </div>
         </div>
+    </header>
 
-        <div class="glass p-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <input type="text" 
-                       id="searchInput" 
-                       placeholder="Buscar en tickets..." 
-                       class="px-4 py-2 bg-blue-600/20 border border-blue-200/20 rounded-lg text-white placeholder-blue-200">
-                
-                <select id="statusFilter" 
-                        class="px-4 py-2 bg-blue-600/20 border border-blue-200/20 rounded-lg text-white">
-                    <option value="">Todos los estados</option>
-                    <option value="En curso (asignada)">En curso</option>
-                    <option value="Resuelto">Resuelto</option>
-                    <option value="Pendiente">Pendiente</option>
-                </select>
+    <div class="container mx-auto max-w-7xl">
+        <!-- Title Section -->
+        <div class="glass p-8 mb-8 text-center">
+            <h1 id="detailTitle" class="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent"></h1>
+            <p id="detailSubtitle" class="text-xl opacity-80"></p>
+        </div>
 
-                <select id="priorityFilter"
-                        class="px-4 py-2 bg-blue-600/20 border border-blue-200/20 rounded-lg text-white">
-                    <option value="">Todas las prioridades</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Media">Media</option>
-                    <option value="Baja">Baja</option>
-                </select>
-            </div>
+        <!-- Details Content -->
+        <div id="detailsContent" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Content will be dynamically inserted here -->
+        </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full whitespace-nowrap">
-                    <thead>
-                        <tr class="border-b border-blue-200/20">
-                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">ID</th>
-                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Título</th>
-                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Estado</th>
-                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Prioridad</th>
-                            <th class="px-6 py-3 text-left text-sm font-semibold text-blue-100">Tiempo</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ticketsBody">
-                        <!-- Se llenará dinámicamente -->
-                    </tbody>
-                </table>
-            </div>
+        <!-- Timeline/Table Section -->
+        <div id="timelineSection" class="glass p-6 mt-8">
+            <!-- Timeline or Table will be inserted here -->
+        </div>
+
+        <!-- Export Button -->
+        <div class="flex justify-end gap-3 mt-8">
+            <button onclick="exportToJPG()" class="btn">
+                <i class="fas fa-image"></i>
+                Exportar JPG
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading hidden">
+        <div class="text-center">
+            <div class="w-16 h-16 mx-auto mb-4 spinner rounded-full"></div>
+            <p class="text-xl font-semibold">Cargando detalles…</p>
         </div>
     </div>
 
     <script>
-        // Obtener el técnico de la URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const technician = urlParams.get('tecnico');
+        let detailsData = null;
+        const charts = {};
 
-        // Actualizar el nombre del técnico en el título
-        document.getElementById('technicianName').textContent = `Tickets de ${technician}`;
+        function showLoading() {
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+        }
 
-        // Datos de ejemplo (reemplazar con datos reales de tu backend)
-        const ticketsData = [
-            {
-                id: 1,
-                titulo: "Problema con impresora",
-                estado: "En curso (asignada)",
-                prioridad: "Media",
-                tiempo: "2h"
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+
+        function getQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            const type = params.get('type');
+            const value = params.get('tech') || params.get('category') || 
+                         params.get('status') || params.get('month');
+            return { type: type || 'tech', value };
+        }
+
+        Highcharts.setOptions({
+            chart: {
+                style: {
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                },
+                backgroundColor: 'transparent'
             },
-            // ... más tickets
-        ];
+            colors: [
+                '#00d4ff', '#00f5ff', '#00e6e6', '#00d4a8',
+                '#00c2ff', '#a8d4ff', '#00b8d4', '#00a8cc'
+            ],
+            title: {
+                style: {
+                    color: '#ffffff',
+                    fontWeight: 'bold'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                style: {
+                    color: '#ffffff'
+                }
+            }
+        });
 
-        function getStatusClass(status) {
-            const classes = {
-                'En curso (asignada)': 'status-assigned',
-                'Resuelto': 'status-resolved',
-                'Pendiente': 'status-pending'
-            };
-            return `status-badge ${classes[status] || 'status-pending'}`;
-        }
-
-        function getPriorityClass(priority) {
-            const classes = {
-                'Alta': 'priority-high',
-                'Media': 'priority-medium',
-                'Baja': 'priority-low'
-            };
-            return `status-badge ${classes[priority] || 'priority-medium'}`;
-        }
-
-        function renderTickets(tickets) {
-            const tbody = document.getElementById('ticketsBody');
-            tbody.innerHTML = '';
-
-            tickets.forEach(ticket => {
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-blue-200/10';
-                tr.innerHTML = `
-                    <td class="px-6 py-4 text-white">${ticket.id}</td>
-                    <td class="px-6 py-4 text-white">${ticket.titulo}</td>
-                    <td class="px-6 py-4">
-                        <span class="${getStatusClass(ticket.estado)}">${ticket.estado}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <span class="${getPriorityClass(ticket.prioridad)}">${ticket.prioridad}</span>
-                    </td>
-                    <td class="px-6 py-4 text-white">${ticket.tiempo}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            // Actualizar estadísticas
-            const stats = {
-                total: tickets.length,
-                enCurso: tickets.filter(t => t.estado === 'En curso (asignada)').length,
-                resueltos: tickets.filter(t => t.estado === 'Resuelto').length
-            };
-
-            document.getElementById('technicianStats').textContent = 
-                `Total: ${stats.total} | En curso: ${stats.enCurso} | Resueltos: ${stats.resueltos}`;
-        }
-
-        // Filtrado
-        function filterTickets() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            const priorityFilter = document.getElementById('priorityFilter').value;
-
-            const filtered = ticketsData.filter(ticket => {
-                const matchesSearch = Object.values(ticket).some(value => 
-                    value.toString().toLowerCase().includes(searchTerm)
-                );
-                const matchesStatus = !statusFilter || ticket.estado === statusFilter;
-                const matchesPriority = !priorityFilter || ticket.prioridad === priorityFilter;
-
-                return matchesSearch && matchesStatus && matchesPriority;
-            });
-
-            renderTickets(filtered);
-        }
-
-        // Event listeners para filtros
-        document.getElementById('searchInput').addEventListener('input', filterTickets);
-        document.getElementById('statusFilter').addEventListener('change', filterTickets);
-        document.getElementById('priorityFilter').addEventListener('change', filterTickets);
-
-        // Cargar datos iniciales
-        renderTickets(ticketsData);
-
-        // Función para cargar datos del servidor (implementar cuando tengas el backend)
-        async function loadTicketsData() {
+        async function loadDetails() {
+            showLoading();
+            const { type, value } = getQueryParams();
+            
             try {
-                const response = await fetch(`/api/tickets/${encodeURIComponent(technician)}`);
-                if (!response.ok) throw new Error('Error cargando datos');
+                const response = await fetch(`/api/tickets/filter?type=${type}&value=${encodeURIComponent(value)}`);
+                if (!response.ok) throw new Error('Error al cargar los detalles');
+                
                 const data = await response.json();
-                ticketsData = data;
-                renderTickets(data);
+                
+                if (!data.success) {
+                    throw new Error(data.error || 'Error al procesar los datos');
+                }
+                
+                detailsData = processTicketsData(data.data.tickets);
+                updateUI(type, value);
             } catch (error) {
                 console.error('Error:', error);
-                alert('Error cargando los tickets');
+                alert('Error al cargar los detalles. Por favor, intente nuevamente.');
+            } finally {
+                hideLoading();
             }
         }
+
+        function processTicketsData(tickets) {
+            const months = [...new Set(tickets.map(t => t.Mes_Año))].sort();
+            const statusCounts = {};
+            const monthlyPerformance = {};
+            
+            months.forEach(month => {
+                monthlyPerformance[month] = 0;
+            });
+            
+            tickets.forEach(ticket => {
+                statusCounts[ticket.Estados] = (statusCounts[ticket.Estados] || 0) + 1;
+                
+                if (ticket.Mes_Año) {
+                    monthlyPerformance[ticket.Mes_Año]++;
+                }
+            });
+            
+            return {
+                performance: {
+                    months: months,
+                    values: months.map(month => monthlyPerformance[month] || 0)
+                },
+                status_distribution: statusCounts,
+                recent_activity: tickets.slice(0, 10).map(ticket => ({
+                    title: `Ticket #${ticket.ID}`,
+                    date: ticket['Fecha de apertura'],
+                    description: `${ticket.Categoría} - ${ticket.Estados}`,
+                    id: ticket.ID
+                }))
+            };
+        }
+
+        function updateUI(type, value) {
+            const title = document.getElementById('detailTitle');
+            const subtitle = document.getElementById('detailSubtitle');
+
+            switch(type) {
+                case 'tech':
+                    title.textContent = `Técnico: ${value}`;
+                    subtitle.textContent = 'Análisis detallado de asignaciones y performance';
+                    break;
+                case 'category':
+                    title.textContent = `Categoría: ${value}`;
+                    subtitle.textContent = 'Análisis de tickets por categoría';
+                    break;
+                case 'status':
+                    title.textContent = `Estado: ${value}`;
+                    subtitle.textContent = 'Análisis de tickets por estado';
+                    break;
+                case 'month':
+                    title.textContent = `Período: ${value}`;
+                    subtitle.textContent = 'Análisis mensual de tickets';
+                    break;
+            }
+            
+            renderTechnicianDetails(detailsData);
+        }
+
+        function renderTechnicianDetails(data) {
+            const content = document.getElementById('detailsContent');
+            content.innerHTML = `
+                <div class="glass p-6">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-chart-line mr-2 text-cyan-400"></i>
+                        Performance Mensual
+                    </h3>
+                    <div id="performanceChart" class="chart-container"></div>
+                </div>
+                <div class="glass p-6">
+                    <h3 class="text-xl font-bold mb-4">
+                        <i class="fas fa-tasks mr-2 text-cyan-400"></i>
+                        Distribución por Estado
+                    </h3>
+                    <div id="statusDistChart" class="chart-container"></div>
+                </div>
+            `;
+
+            initializePerformanceChart(data.performance);
+            initializeStatusDistChart(data.status_distribution);
+
+            const timeline = document.getElementById('timelineSection');
+            timeline.innerHTML = `
+                <h3 class="text-xl font-bold mb-4">
+                    <i class="fas fa-history mr-2 text-cyan-400"></i>
+                    Tickets Recientes
+                </h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Categoría</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.recent_activity.map(ticket => {
+                                const ticketId = ticket.id;
+                                return `
+                                    <tr>
+                                        <td>
+                                            <a href="https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}" 
+                                               target="_blank" 
+                                               style="color: #00d4ff; text-decoration: underline;">
+                                                ${ticket.title}
+                                            </a>
+                                        </td>
+                                        <td>${ticket.date}</td>
+                                        <td>${ticket.description.split(' - ')[0]}</td>
+                                        <td>${ticket.description.split(' - ')[1]}</td>
+                                        <td>
+                                            <button onclick="window.open('https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}', '_blank')" 
+                                                    class="btn btn-sm text-xs py-1 px-2">
+                                                <i class="fas fa-external-link-alt"></i>
+                                                Ver
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        function initializePerformanceChart(data) {
+            charts.performance = Highcharts.chart('performanceChart', {
+                chart: {
+                    type: 'spline'
+                },
+                xAxis: {
+                    categories: data.months,
+                    labels: {
+                        style: { color: '#ffffff' }
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Cantidad de Tickets',
+                        style: { color: '#ffffff' }
+                    },
+                    gridLineColor: 'rgba(255, 255, 255, 0.1)'
+                },
+                series: [{
+                    name: 'Tickets',
+                    data: data.values,
+                    color: '#00d4ff'
+                }]
+            });
+        }
+
+        function initializeStatusDistChart(data) {
+            charts.statusDist = Highcharts.chart('statusDistChart', {
+                chart: {
+                    type: 'pie'
+                },
+                plotOptions: {
+                    pie: {
+                        allowPointSelect: true,
+                        cursor: 'pointer',
+                        dataLabels: {
+                            enabled: true,
+                            format: '<b>{point.name}</b>: {point.percentage:.1f}%',
+                            style: {
+                                color: 'white',
+                                textOutline: 'none'
+                            }
+                        }
+                    }
+                },
+                series: [{
+                    name: 'Estados',
+                    data: Object.entries(data).map(([name, value]) => ({
+                        name,
+                        y: value
+                    }))
+                }]
+            });
+        }
+
+        // Exportar con logo SENASA
+        async function exportToJPG() {
+            const container = document.querySelector('.container');
+            const originalHTML = container.innerHTML;
+            
+            // Crear header con logo para el export
+            const headerHTML = `
+                <div class="export-preview">
+                    <div class="preview-header" style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: linear-gradient(135deg, #0d2d62, #113b7f); border-radius: 8px;">
+                        <img src="https://www.gob.pe/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1MDAsInB1ciI6ImJsb2JfaWQifX0=--d56e8d89845af7a460ccbe0d65ed319826301586/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOltudWxsLDQ4XX0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--830247c4bafe7cadca50817d8559bf1a09e3aa28/Sin%20ti%CC%81tulo-1-01%20(1).png" alt="SENASA" style="height: 40px; background: white; padding: 4px; border-radius: 6px;">
+                        <h2 style="color: white; font-weight: bold; font-size: 20px; margin: 0;">Reporte GLPI – SENASA</h2>
+                    </div>
+                    <div style="background: white; color: #0a0f1a; padding: 1.5rem; border-radius: 8px; margin-top: 1rem;">
+                        ${container.innerHTML}
+                    </div>
+                </div>
+            `;
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = headerHTML;
+            document.body.appendChild(tempDiv);
+            
+            try {
+                const canvas = await html2canvas(tempDiv, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true,
+                    allowTaint: true
+                });
+                
+                const link = document.createElement('a');
+                link.download = `reporte-glpi-senasa-${new Date().toISOString().split('T')[0]}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+            } catch (error) {
+                console.error('Error al exportar:', error);
+                alert('Error al exportar. Por favor, intente nuevamente.');
+            } finally {
+                document.body.removeChild(tempDiv);
+            }
+        }
+
+        window.addEventListener('resize', function() {
+            Object.values(charts).forEach(chart => {
+                if (chart && chart.reflow) {
+                    chart.reflow();
+                }
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', loadDetails);
     </script>
 </body>
 </html>

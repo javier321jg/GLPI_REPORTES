@@ -1,517 +1,394 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detalles de Tickets - GLPI Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://code.highcharts.com/highcharts.js"></script>
-    <script src="https://code.highcharts.com/modules/timeline.js"></script>
-    <script src="https://code.highcharts.com/modules/exporting.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --gradient-1: linear-gradient(135deg, #FF5733, #FF8D1A);
-            --gradient-2: linear-gradient(135deg, #FFC300, #FFD700);
-            --gradient-3: linear-gradient(135deg, #28A745, #5CE67D);
-            --gradient-4: linear-gradient(135deg, #17A2B8, #58D3F7);
-        }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reportes GLPI – SENASA</title>
 
-        body {
-            background: linear-gradient(135deg, #1c3b63, #2e5b93);
-            min-height: 100vh;
-            color: white;
-            font-family: 'Inter', system-ui, sans-serif;
-        }
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
 
-        .glass {
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            transition: all 0.3s ease;
-        }
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/variable-pie.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.19.3/xlsx.full.min.js"></script>
 
-        .glass:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-        }
-
-        .stats-card {
-            color: white;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .stats-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .stats-card-1 { background: var(--gradient-1); }
-        .stats-card-2 { background: var(--gradient-2); }
-        .stats-card-3 { background: var(--gradient-3); }
-        .stats-card-4 { background: var(--gradient-4); }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            cursor: pointer;
-            font-size: 0.875rem;
-        }
-
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .chart-container {
-            min-height: 400px;
-            margin: 1rem 0;
-        }
-
-        .large-chart {
-            min-height: 500px;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 15px;
-            padding: 1rem;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        th, td {
-            padding: 1rem;
-            text-align: left;
-        }
-
-        th {
-            background: rgba(255, 183, 77, 0.2);
-            font-weight: 600;
-            color: white;
-            border-bottom: 2px solid rgba(255, 183, 77, 0.4);
-        }
-
-        td {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        tbody tr:hover {
-            background: rgba(255, 183, 77, 0.1);
-            cursor: pointer;
-        }
-
-        .loading {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(8px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-    </style>
+<style>
+  :root { 
+    --azul:#0d2d62; 
+    --azul2:#113b7f; 
+    --turquesa:#00d4ff;
+    --accent:#ff6b35;
+    --stroke: rgba(255,255,255,.08); 
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body{ 
+    background: linear-gradient(135deg, #0a0f1a 0%, #0f1b2e 100%); 
+    color:#e9eef5; 
+    font-family: Inter, system-ui, sans-serif;
+    min-height: 100vh;
+  }
+  
+  header{ 
+    background: linear-gradient(135deg, var(--azul) 0%, var(--azul2) 50%, #1a4d7f 100%);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid rgba(0,212,255,.3);
+  }
+  
+  .senasa-logo {
+    background: rgba(255,255,255,0.95);
+    padding: 0.3rem 0.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .panel{ 
+    background: rgba(15,22,37,0.8);
+    border:1px solid var(--stroke); 
+    border-radius:16px;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+  
+  .panel:hover {
+    border-color: rgba(0,212,255,.3);
+    box-shadow: 0 8px 24px rgba(0,212,255,.1);
+  }
+  
+  .btn{ 
+    padding:.6rem .9rem; 
+    border-radius:10px; 
+    background: linear-gradient(135deg, #00d4ff, #0099cc);
+    color:#000; 
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .btn:hover{ 
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,212,255,.4);
+    filter: brightness(1.1);
+  }
+  
+  .upload-zone{ 
+    border:2px dashed var(--turquesa); 
+    padding:2rem; 
+    border-radius:14px; 
+    cursor:pointer;
+    background: rgba(0,212,255,.05);
+    transition: all 0.3s ease;
+  }
+  
+  .upload-zone:hover{ 
+    background:rgba(0,212,255,.15);
+    border-color: var(--accent);
+    transform: scale(1.01);
+  }
+  
+  .chart-container{ width:100%; height:360px; }
+  
+  /* KPI Cards */
+  .kpi-card {
+    background: linear-gradient(135deg, rgba(0,212,255,.1), rgba(0,212,255,.05));
+    border: 1px solid rgba(0,212,255,.2);
+    border-radius: 14px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .kpi-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--turquesa);
+    box-shadow: 0 8px 24px rgba(0,212,255,.15);
+  }
+  
+  .kpi-label {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    font-weight: 700;
+    opacity: 0.8;
+    letter-spacing: 0.05em;
+  }
+  
+  .kpi-value {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--turquesa), #00a8cc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-top: 0.5rem;
+  }
+  
+  /* Tabla estilo SENASA */
+  table{ width:100%; border-collapse: collapse; }
+  thead th{ 
+    background: linear-gradient(135deg, var(--azul), #1a4d7f);
+    color:#fff; 
+    position: sticky; 
+    top:0; 
+    z-index:1;
+    font-weight: 700;
+  }
+  th, td{ padding:.7rem .8rem; border-bottom: 1px solid #e5e7eb; color:#0a0f1a; }
+  tbody tr:nth-child(odd){ background:#ffffff; }
+  tbody tr:nth-child(even){ background:#f8fafc; }
+  tbody tr:hover { background: #e6f2ff; }
+  tfoot td{ background: linear-gradient(135deg, #eaf2ff, #d4e6ff); color:#0a0f1a; font-weight:700; }
+  .table-wrap{ background:#ffffff; border-radius:12px; overflow:auto; box-shadow: 0 4px 20px rgba(0,0,0,.1); }
+  
+  /* Loading */
+  .spinner {
+    background: linear-gradient(135deg, var(--turquesa), var(--accent));
+  }
+</style>
 </head>
-<body class="p-6">
-    <div class="container mx-auto max-w-7xl">
-        <!-- Header with Back Button -->
-        <div class="glass p-6 mb-8">
-            <div class="flex justify-between items-center">
-                <button onclick="window.location.href='index.html'" class="btn">
-                    <i class="fas fa-arrow-left"></i>
-                    Volver al Dashboard
-                </button>
-                <div class="space-x-4">
-                    <button onclick="exportToJPG()" class="btn">
-                        <i class="fas fa-image"></i>
-                        JPG
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Title Section -->
-        <div class="glass p-8 mb-8 text-center">
-            <h1 id="detailTitle" class="text-4xl font-bold mb-4"></h1>
-            <p id="detailSubtitle" class="text-xl opacity-80"></p>
-        </div>
-
-        <!-- Details Content -->
-        <div id="detailsContent" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Content will be dynamically inserted here -->
-        </div>
-
-        <!-- Timeline/Table Section -->
-        <div id="timelineSection" class="glass p-6 mt-8">
-            <!-- Timeline or Table will be inserted here -->
-        </div>
+<body class="pb-12">
+  <header class="p-5">
+    <div class="max-w-7xl mx-auto flex items-center gap-4">
+      <div class="senasa-logo">
+        <img src="https://www.gob.pe/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1MDAsInB1ciI6ImJsb2JfaWQifX0=--d56e8d89845af7a460ccbe0d65ed319826301586/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOltudWxsLDQ4XX0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--830247c4bafe7cadca50817d8559bf1a09e3aa28/Sin%20ti%CC%81tulo-1-01%20(1).png"
+             alt="SENASA" class="h-8 w-auto"/>
+      </div>
+      <div class="flex-1">
+        <h1 class="text-3xl font-extrabold tracking-wide bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">Reportes GLPI – SENASA</h1>
+        <p class="opacity-80 text-sm">Sistema inteligente de análisis de tickets</p>
+      </div>
     </div>
+  </header>
 
-    <!-- Loading Overlay -->
-    <div id="loadingOverlay" class="loading hidden">
-        <div class="text-center">
-            <i class="fas fa-cog fa-spin text-6xl text-blue-400 mb-4 pulse"></i>
-            <p class="text-xl">Cargando detalles...</p>
+  <main class="max-w-7xl mx-auto p-6 space-y-8">
+    <!-- Subida -->
+    <section class="panel p-6">
+      <form id="uploadForm" class="max-w-2xl mx-auto">
+        <div class="upload-zone text-center" onclick="document.getElementById('file').click()">
+          <i class="fas fa-cloud-upload-alt text-6xl mb-4 text-cyan-300"></i>
+          <input id="file" type="file" name="file" accept=".csv" class="hidden" />
+          <p class="text-lg font-semibold text-white/90">Arrastra tu CSV o haz clic para seleccionar</p>
+          <p class="text-sm text-white/70 mt-2">Encabezados: ID, Fecha, Estado, Prioridad, Técnico, Categoría</p>
         </div>
+      </form>
+    </section>
+
+    <!-- KPIs -->
+    <section id="kpis" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 hidden">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Tickets</div>
+        <div id="k_total" class="kpi-value">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Técnicos</div>
+        <div id="k_tecnicos" class="kpi-value">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Pendientes</div>
+        <div id="k_pend" class="kpi-value">0</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Eficiencia</div>
+        <div id="k_eff" class="kpi-value">0%</div>
+      </div>
+    </section>
+
+    <!-- Gráficos -->
+    <section id="charts" class="grid grid-cols-1 lg:grid-cols-2 gap-6 hidden">
+      <div class="panel p-6">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xl font-bold">Distribución por Categoría</h3>
+          <button class="btn" onclick="exportChart('categChart')"><i class="fas fa-download mr-2"></i>JPG</button>
+        </div>
+        <div id="categChart" class="chart-container"></div>
+      </div>
+      <div class="panel p-6">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xl font-bold">Estados</h3>
+          <button class="btn" onclick="exportChart('estadoChart')"><i class="fas fa-download mr-2"></i>JPG</button>
+        </div>
+        <div id="estadoChart" class="chart-container"></div>
+      </div>
+      <div class="panel p-6 lg:col-span-2">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-xl font-bold">Tendencia Mensual</h3>
+          <button class="btn" onclick="exportChart('trendChart')"><i class="fas fa-download mr-2"></i>JPG</button>
+        </div>
+        <div id="trendChart" class="chart-container"></div>
+      </div>
+    </section>
+
+    <!-- Tabla -->
+    <section id="tableSection" class="space-y-3 hidden">
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-bold">Tickets por Técnico</h3>
+        <div class="flex gap-2">
+          <button class="btn" onclick="exportTableToExcel()"><i class="fas fa-file-excel mr-2"></i>Excel</button>
+          <button class="btn" onclick="exportTableToPDF()"><i class="fas fa-file-pdf mr-2"></i>PDF</button>
+          <button class="btn" onclick="exportTableToJPG()"><i class="fas fa-image mr-2"></i>JPG</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="techTable">
+          <thead>
+            <tr><th class="text-left text-white">Técnico</th><th class="text-right text-white">Total</th></tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot><tr><td>Total General</td><td class="text-right">0</td></tr></tfoot>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Overlay -->
+  <div id="overlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
+    <div class="text-center text-white">
+      <div class="relative w-20 h-20 mx-auto mb-4">
+        <div class="spinner absolute inset-0 rounded-full opacity-75" style="animation: spin 3s linear infinite;"></div>
+      </div>
+      <p class="text-xl font-semibold">Procesando datos…</p>
     </div>
+  </div>
 
-    <script>
-        let detailsData = null;
-        const charts = {};
+<script>
+  let dataStore = null, charts = {};
+  const $ = (s)=>document.querySelector(s);
+  const show = (id)=>$(id).classList.remove('hidden');
+  const hide = (id)=>$(id).classList.add('hidden');
 
-        function showLoading() {
-            document.getElementById('loadingOverlay').classList.remove('hidden');
-        }
+  Highcharts.setOptions({
+    chart:{ backgroundColor:'transparent', style:{ fontFamily:'Inter, system-ui, sans-serif' } },
+    title:{ text:null }, credits:{ enabled:false },
+    legend:{ itemStyle:{ color:'#e9eef5' } },
+    xAxis:{ labels:{ style:{ color:'#cfd8e3'} } },
+    yAxis:{ title:{ text:null }, labels:{ style:{ color:'#cfd8e3'} } },
+    colors:['#00d4ff','#00f5ff','#00e6e6','#00d4a8','#00c2ff','#a8d4ff']
+  });
 
-        function hideLoading() {
-            document.getElementById('loadingOverlay').classList.add('hidden');
-        }
+  // Upload -> backend
+  document.getElementById('file').addEventListener('change', async (e)=>{
+    if(!e.target.files.length) return;
+    const form = new FormData(); form.append('file', e.target.files[0]);
+    show('#overlay');
+    try{
+      const res = await fetch('/api/upload', { method:'POST', body:form });
+      const json = await res.json();
+      if(!json.success) throw new Error(json.error || 'Error procesando CSV');
+      dataStore = json.data;
+      renderAll();
+    }catch(err){
+      alert('Error: '+err.message);
+    }finally{ hide('#overlay'); }
+  });
 
-        function getQueryParams() {
-            const params = new URLSearchParams(window.location.search);
-            const type = params.get('type');
-            const value = params.get('tech') || params.get('category') || 
-                         params.get('status') || params.get('month');
-            return { type: type || 'tech', value };
-        }
+  function renderAll(){
+    show('#kpis'); show('#charts'); show('#tableSection');
+    const s = dataStore.dashboard_stats;
+    const total = Object.values(s.tickets_por_categoria||{}).reduce((a,b)=>a+b,0);
+    const pendientes = s.tickets_por_estado?.Pendiente || s.tickets_por_estado?.pendiente || 0;
+    const resueltos  = s.tickets_por_estado?.Resuelto || s.tickets_por_estado?.resuelto || 0;
+    const totalEst = Object.values(s.tickets_por_estado||{}).reduce((a,b)=>a+b,0);
+    const eff = totalEst ? (resueltos/totalEst)*100 : 0;
 
-        Highcharts.setOptions({
-            chart: {
-                style: {
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                },
-                backgroundColor: 'transparent'
-            },
-            colors: [
-                '#4caefe', '#3dc3e8', '#2dd9db', '#1feeaf',
-                '#0ff3a0', '#00e887', '#23e274', '#4caefe'
-            ],
-            title: {
-                style: {
-                    color: '#ffffff',
-                    fontWeight: 'bold'
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                style: {
-                    color: '#ffffff'
-                }
-            }
-        });
+    $('#k_total').textContent = total.toLocaleString();
+    $('#k_tecnicos').textContent = dataStore.technician_stats.length.toLocaleString();
+    $('#k_pend').textContent = pendientes.toLocaleString();
+    $('#k_eff').textContent = eff.toFixed(1)+'%';
 
-        async function loadDetails() {
-            showLoading();
-            const { type, value } = getQueryParams();
-            
-            try {
-                const response = await fetch(`/api/tickets/filter?type=${type}&value=${encodeURIComponent(value)}`);
-                if (!response.ok) throw new Error('Error al cargar los detalles');
-                
-                const data = await response.json();
-                
-                if (!data.success) {
-                    throw new Error(data.error || 'Error al procesar los datos');
-                }
-                
-                detailsData = processTicketsData(data.data.tickets);
-                updateUI(type, value);
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error al cargar los detalles. Por favor, intente nuevamente.');
-            } finally {
-                hideLoading();
-            }
-        }
+    // charts
+    charts.categ = Highcharts.chart('categChart', {
+      chart:{ type:'variablepie' },
+      series:[{ innerSize:'55%', data: Object.entries(s.tickets_por_categoria||{}).map(([name,y])=>({name,y})) }]
+    });
+    charts.estado = Highcharts.chart('estadoChart', {
+      chart:{ type:'pie' },
+      series:[{ data: Object.entries(s.tickets_por_estado||{}).map(([name,y])=>({name,y})) }]
+    });
+    const trendEntries = Object.entries(s.tendencia_mensual||{}).sort(([a],[b])=>a.localeCompare(b));
+    charts.trend = Highcharts.chart('trendChart', {
+      chart:{ type:'line' },
+      xAxis:{ categories: trendEntries.map(([k])=>k) },
+      series:[{ name:'Tickets', data: trendEntries.map(([,v])=>v) }]
+    });
 
-        function processTicketsData(tickets) {
-            const months = [...new Set(tickets.map(t => t.Mes_Año))].sort();
-            const statusCounts = {};
-            const monthlyPerformance = {};
-            
-            months.forEach(month => {
-                monthlyPerformance[month] = 0;
-            });
-            
-            tickets.forEach(ticket => {
-                statusCounts[ticket.Estados] = (statusCounts[ticket.Estados] || 0) + 1;
-                
-                if (ticket.Mes_Año) {
-                    monthlyPerformance[ticket.Mes_Año]++;
-                }
-            });
-            
-            return {
-                performance: {
-                    months: months,
-                    values: months.map(month => monthlyPerformance[month] || 0)
-                },
-                status_distribution: statusCounts,
-                recent_activity: tickets.slice(0, 10).map(ticket => ({
-                    title: `Ticket #${ticket.ID}`,
-                    date: ticket['Fecha de apertura'],
-                    description: `${ticket.Categoría} - ${ticket.Estados}`,
-                    id: ticket.ID
-                }))
-            };
-        }
+    // table
+    renderTechTable(dataStore.technician_stats);
+  }
 
-        function updateUI(type, value) {
-            const title = document.getElementById('detailTitle');
-            const subtitle = document.getElementById('detailSubtitle');
+  function renderTechTable(list){
+    const table = $('#techTable');
+    const thead = table.querySelector('thead tr');
+    const tbody = table.querySelector('tbody');
+    const tfoot = table.querySelector('tfoot tr');
 
-            switch(type) {
-                case 'tech':
-                    title.textContent = `Detalles del Técnico: ${value}`;
-                    subtitle.textContent = 'Análisis detallado de tickets y performance';
-                    renderTechnicianDetails(detailsData);
-                    break;
-                    
-                case 'category':
-                    title.textContent = `Categoría: ${value}`;
-                    subtitle.textContent = 'Análisis de tickets por categoría';
-                    renderTechnicianDetails(detailsData);
-                    break;
-                    
-                case 'status':
-                    title.textContent = `Estado: ${value}`;
-                    subtitle.textContent = 'Análisis de tickets por estado';
-                    renderTechnicianDetails(detailsData);
-                    break;
-                    
-                case 'month':
-                    title.textContent = `Actividad del Mes: ${value}`;
-                    subtitle.textContent = 'Análisis mensual de tickets';
-                    renderTechnicianDetails(detailsData);
-                    break;
-            }
-        }
+    // meses presentes
+    const months = new Set();
+    list.forEach(t=>{
+      Object.keys(t).forEach(k=>{ if(k!=='Técnico' && Number.isInteger(t[k])) months.add(k); });
+    });
+    const monthsSorted = Array.from(months).sort((a,b)=>a.localeCompare(b));
 
-        function renderTechnicianDetails(data) {
-            const content = document.getElementById('detailsContent');
-            content.innerHTML = `
-                <div class="glass p-6">
-                    <h3 class="text-xl font-bold mb-4">
-                        <i class="fas fa-chart-line mr-2"></i>
-                        Performance Mensual
-                    </h3>
-                    <div id="performanceChart" class="chart-container"></div>
-                </div>
-                <div class="glass p-6">
-                    <h3 class="text-xl font-bold mb-4">
-                        <i class="fas fa-tasks mr-2"></i>
-                        Distribución por Estado
-                    </h3>
-                    <div id="statusDistChart" class="chart-container"></div>
-                </div>
-            `;
+    thead.innerHTML = `<th class="text-left text-white">Técnico</th>${monthsSorted.map(m=>`<th class="text-center text-white">${m}</th>`).join('')}<th class="text-right text-white">Total</th>`;
+    tbody.innerHTML = '';
+    const monthTotals = {}; let grand = 0;
 
-            initializePerformanceChart(data.performance);
-            initializeStatusDistChart(data.status_distribution);
+    list.forEach(t=>{
+      let total = 0;
+      const cells = monthsSorted.map(m=>{
+        const v = t[m] || 0; total += v; monthTotals[m] = (monthTotals[m]||0)+v;
+        return `<td class="text-center">${v}</td>`;
+      }).join('');
+      grand += total;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${t['Técnico']}</td>${cells}<td class="text-right font-bold">${total}</td>`;
+      tbody.appendChild(tr);
+    });
 
-            const timeline = document.getElementById('timelineSection');
-            timeline.innerHTML = `
-                <h3 class="text-xl font-bold mb-4">
-                    <i class="fas fa-history mr-2"></i>
-                    Tickets Recientes
-                </h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Fecha</th>
-                                <th>Categoría</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.recent_activity.map(ticket => {
-                                const ticketId = ticket.id;
-                                return `
-                                    <tr>
-                                        <td>
-                                            <a href="https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}" 
-                                               target="_blank" 
-                                               class="ticket-link">
-                                                ${ticket.title}
-                                            </a>
-                                        </td>
-                                        <td>${ticket.date}</td>
-                                        <td>${ticket.description.split(' - ')[0]}</td>
-                                        <td>${ticket.description.split(' - ')[1]}</td>
-                                        <td>
-                                            <button onclick="window.open('https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}', '_blank')" 
-                                                    class="btn btn-sm">
-                                                <i class="fas fa-external-link-alt"></i>
-                                                Ver en GLPI
-                                            </button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-        }
+    tfoot.innerHTML = `<td>Total General</td>${monthsSorted.map(m=>`<td class="text-center font-bold">${monthTotals[m]||0}</td>`).join('')}<td class="text-right font-bold">${grand}</td>`;
+  }
 
-        function initializePerformanceChart(data) {
-            charts.performance = Highcharts.chart('performanceChart', {
-                chart: {
-                    type: 'spline'
-                },
-                title: {
-                    text: 'Performance Mensual'
-                },
-                xAxis: {
-                    categories: data.months,
-                    labels: {
-                        style: { color: '#ffffff' }
-                    }
-                },
-                yAxis: {
-                    title: {
-                        text: 'Cantidad de Tickets',
-                        style: { color: '#ffffff' }
-                    },
-                    gridLineColor: 'rgba(255, 255, 255, 0.1)'
-                },
-                series: [{
-                    name: 'Tickets',
-                    data: data.values
-                }]
-            });
-        }
+  // Export charts
+  function exportChart(id){
+    const c = Highcharts.charts.find(x=>x && x.renderTo.id===id);
+    if(c) c.exportChart({ type:'image/jpeg', filename:`chart-${id}` });
+  }
 
-        // CORRECCIÓN AQUÍ: Se elimina el "title: {title:{ ... }}" duplicado
-        function initializeStatusDistChart(data) {
-            charts.statusDist = Highcharts.chart('statusDistChart', {
-                chart: {
-                    type: 'pie'
-                },
-                title: {
-                    text: 'Distribución por Estado'
-                },
-                plotOptions: {
-                    pie: {
-                        allowPointSelect: true,
-                        cursor: 'pointer',
-                        dataLabels: {
-                            enabled: true,
-                            format: '<b>{point.name}</b>: {point.percentage:.1f}%',
-                            style: {
-                                color: 'white',
-                                textOutline: 'none'
-                            }
-                        }
-                    }
-                },
-                series: [{
-                    name: 'Estados',
-                    data: Object.entries(data).map(([name, value]) => ({
-                        name,
-                        y: value
-                    }))
-                }]
-            });
-        }
-
-        // Función para exportar a JPG
-        async function exportToJPG() {
-            const container = document.querySelector('.container');
-            try {
-                const canvas = await html2canvas(container, {
-                    scale: 2,
-                    backgroundColor: '#1a1a1a',
-                    logging: false,
-                    useCORS: true,
-                    allowTaint: true
-                });
-                
-                const link = document.createElement('a');
-                link.download = 'detalles-tickets.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 1.0);
-                link.click();
-            } catch (error) {
-                console.error('Error al exportar como JPG:', error);
-                alert('Error al exportar la imagen. Por favor, intente nuevamente.');
-            }
-        }
-
-        // Función para mostrar notificaciones
-        function showNotification(message, type = 'info') {
-            const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white ${
-                type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-            } shadow-lg z-50 transform transition-transform duration-300 translate-x-full`;
-            
-            notification.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-                    ${message}
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Trigger animation
-            requestAnimationFrame(() => {
-                notification.style.transform = 'translateX(0)';
-            });
-
-            // Remove notification after 3 seconds
-            setTimeout(() => {
-                notification.style.transform = 'translateX(full)';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-
-        // Función para abrir un ticket en GLPI
-        function openTicketInGLPI(ticketId) {
-            window.open(`https://mda.senasa.gob.pe/front/ticket.form.php?id=${ticketId}`, '_blank');
-        }
-
-        // Event Listener para el redimensionamiento de la ventana
-        window.addEventListener('resize', function() {
-            Object.values(charts).forEach(chart => {
-                if (chart && chart.reflow) {
-                    chart.reflow();
-                }
-            });
-        });
-
-        // Inicializar la carga de detalles cuando el documento esté listo
-        document.addEventListener('DOMContentLoaded', loadDetails);
-    </script>
+  // Export table
+  function exportTableToJPG(){
+    const node = document.querySelector('.table-wrap');
+    html2canvas(node, { scale: 2, backgroundColor:'#ffffff' }).then(canvas=>{
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/jpeg', 1.0);
+      a.download = 'tickets_por_tecnico.jpg'; a.click();
+    });
+  }
+  function exportTableToPDF(){
+    const { jsPDF } = window.jspdf; const doc = new jsPDF('l','pt','a4');
+    const table = document.getElementById('techTable');
+    const head = [Array.from(table.querySelectorAll('thead th')).map(th=>th.textContent.trim())];
+    const body = Array.from(table.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td=>td.textContent.trim()));
+    doc.text('Tickets por Técnico – SENASA', 40, 40);
+    doc.autoTable({ head, body, startY: 60, styles:{ fontSize:8, cellPadding:3 }, headStyles:{ fillColor:[13,45,98], textColor:255 }});
+    doc.save('tickets_por_tecnico.pdf');
+  }
+  function exportTableToExcel(){
+    const table = document.getElementById('techTable');
+    const wb = XLSX.utils.table_to_book(table, { sheet:"Tickets por Técnico" });
+    const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'tickets_por_tecnico.xlsx'; a.click();
+  }
+</script>
 </body>
 </html>

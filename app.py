@@ -194,6 +194,25 @@ class GLPIAnalyzer:
             result.append(row)
         return result
 
+    def technician_daily_stats(self):
+        """Retorna estadísticas de tickets por técnico por día"""
+        if self.df.empty: return []
+        # Crear columna de fecha en formato día
+        df_copy = self.df.copy()
+        df_copy['fecha_dia'] = df_copy['fecha'].dt.strftime('%Y-%m-%d')
+
+        # Agrupar por técnico y día
+        g = df_copy.groupby(['tecnico','fecha_dia'])['id'].count().reset_index()
+        p = g.pivot_table(index='tecnico', columns='fecha_dia', values='id', fill_value=0)
+
+        result = []
+        for tech in p.index:
+            row = {'Técnico': str(tech)}
+            for day in sorted(p.columns):
+                row[day] = int(p.loc[tech, day])
+            result.append(row)
+        return result
+
     def filter_tickets(self, ftype: str, fvalue: str):
         if self.df.empty: return []
         df = self.df.copy()
@@ -281,6 +300,17 @@ def get_ticket(ticket_id: int):
         return jsonify({'success': True, 'data': {'ticket': t}})
     except Exception as ex:
         logger.error("get_ticket error: %s", ex)
+        return jsonify({'success': False, 'error': str(ex)}), 500
+
+@app.route('/api/daily-report')
+def daily_report():
+    try:
+        if not hasattr(app, 'current_analyzer'):
+            return jsonify({'success': False, 'error': 'No data loaded'}), 400
+        data = app.current_analyzer.technician_daily_stats()
+        return jsonify({'success': True, 'data': {'daily_stats': data}})
+    except Exception as ex:
+        logger.error("daily_report error: %s", ex)
         return jsonify({'success': False, 'error': str(ex)}), 500
 
 @app.errorhandler(404)

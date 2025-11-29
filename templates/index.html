@@ -236,7 +236,7 @@
 
     <section id="tableSection" class="space-y-3 hidden">
       <div class="flex justify-between items-center">
-        <h3 class="text-xl font-bold">Tickets por Técnico</h3>
+        <h3 class="text-xl font-bold">Tickets por Técnico (Mensual)</h3>
         <div class="flex gap-2">
           <button class="btn" onclick="exportTableToExcel()"><i class="fas fa-file-excel mr-2"></i>Excel</button>
           <button class="btn" onclick="exportTableToPDF()"><i class="fas fa-file-pdf mr-2"></i>PDF</button>
@@ -253,6 +253,15 @@
         </table>
       </div>
     </section>
+
+    <section id="dailyReportSection" class="space-y-3 hidden">
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-bold">Reporte Diario por Técnico</h3>
+        <div class="flex gap-2">
+          <button class="btn" onclick="openDailyReportModal()"><i class="fas fa-calendar-day mr-2"></i>Ver Reporte Diario</button>
+        </div>
+      </div>
+    </section>
   </main>
 
   <div id="overlay" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
@@ -261,6 +270,31 @@
         <div class="spinner absolute inset-0 rounded-full opacity-75" style="animation: spin 3s linear infinite;"></div>
       </div>
       <p class="text-xl font-semibold">Procesando datos…</p>
+    </div>
+  </div>
+
+  <div id="dailyReportModal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
+      <div class="bg-gradient-to-r from-blue-900 to-blue-700 p-6 flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-white">Reporte Diario por Técnico</h2>
+        <button onclick="closeDailyReportModal()" class="text-white hover:text-gray-300 text-3xl">&times;</button>
+      </div>
+      <div class="p-6">
+        <div class="flex justify-end gap-2 mb-4">
+          <button class="btn" onclick="exportDailyToExcel()"><i class="fas fa-file-excel mr-2"></i>Excel</button>
+          <button class="btn" onclick="exportDailyToPDF()"><i class="fas fa-file-pdf mr-2"></i>PDF</button>
+          <button class="btn" onclick="exportDailyToJPG()"><i class="fas fa-image mr-2"></i>JPG</button>
+        </div>
+        <div class="overflow-auto max-h-[60vh] table-wrap">
+          <table id="dailyTable">
+            <thead>
+              <tr><th class="text-left text-white">Técnico</th><th class="text-right text-white">Total</th></tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot><tr><td>Total General</td><td class="text-right">0</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -295,7 +329,7 @@
   });
 
   function renderAll(){
-    show('#kpis'); show('#charts'); show('#tableSection');
+    show('#kpis'); show('#charts'); show('#tableSection'); show('#dailyReportSection');
     const s = dataStore.dashboard_stats;
     const total = Object.values(s.tickets_por_categoria||{}).reduce((a,b)=>a+b,0);
     const pendientes = s.tickets_por_estado?.Pendiente || s.tickets_por_estado?.pendiente || 0;
@@ -443,6 +477,140 @@
     a.href = URL.createObjectURL(blob);
     a.download = 'tickets_por_tecnico.xlsx';
     a.click();
+  }
+
+  // Funciones para el reporte diario
+  async function openDailyReportModal(){
+    show('#overlay');
+    try{
+      const res = await fetch('/api/daily-report');
+      const json = await res.json();
+      if(!json.success) throw new Error(json.error || 'Error cargando reporte diario');
+      renderDailyTable(json.data.daily_stats);
+      $('#dailyReportModal').classList.remove('hidden');
+      $('#dailyReportModal').classList.add('flex');
+    }catch(err){
+      alert('Error: '+err.message);
+    }finally{ hide('#overlay'); }
+  }
+
+  function closeDailyReportModal(){
+    $('#dailyReportModal').classList.add('hidden');
+    $('#dailyReportModal').classList.remove('flex');
+  }
+
+  function renderDailyTable(list){
+    const table = $('#dailyTable');
+    const thead = table.querySelector('thead tr');
+    const tbody = table.querySelector('tbody');
+    const tfoot = table.querySelector('tfoot tr');
+
+    const days = new Set();
+    list.forEach(t=>{
+      Object.keys(t).forEach(k=>{ if(k!=='Técnico' && Number.isInteger(t[k])) days.add(k); });
+    });
+    const daysSorted = Array.from(days).sort((a,b)=>a.localeCompare(b));
+
+    thead.innerHTML = `<th class="text-left text-white">Técnico</th>${daysSorted.map(d=>`<th class="text-center text-white">${d}</th>`).join('')}<th class="text-right text-white">Total</th>`;
+    tbody.innerHTML = '';
+    const dayTotals = {}; let grand = 0;
+
+    list.forEach(t=>{
+      let total = 0;
+      const cells = daysSorted.map(d=>{
+        const v = t[d] || 0;
+        total += v;
+        dayTotals[d] = (dayTotals[d]||0)+v;
+        const cellClass = v > 0 ? 'cell-colored' : 'cell-zero';
+        return `<td class="text-center ${cellClass}">${v}</td>`;
+      }).join('');
+      grand += total;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${t['Técnico']}</td>${cells}<td class="text-right font-bold">${total}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    const footerCells = daysSorted.map(d=>{
+      const val = dayTotals[d]||0;
+      const cellClass = val > 0 ? 'cell-colored' : 'cell-zero';
+      return `<td class="text-center font-bold ${cellClass}">${val}</td>`;
+    }).join('');
+    tfoot.innerHTML = `<td>Total General</td>${footerCells}<td class="text-right font-bold">${grand}</td>`;
+  }
+
+  function exportDailyToExcel(){
+    const table = document.getElementById('dailyTable');
+    const wb = XLSX.utils.table_to_book(table, { sheet:"Reporte Diario" });
+    const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+    const blob = new Blob([wbout], {type:'application/octet-stream'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'reporte_diario.xlsx';
+    a.click();
+  }
+
+  function exportDailyToPDF(){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l','pt','a3');
+    const table = document.getElementById('dailyTable');
+    const head = [Array.from(table.querySelectorAll('thead th')).map(th=>th.textContent.trim())];
+    const body = Array.from(table.querySelectorAll('tbody tr')).map(tr => Array.from(tr.children).map(td=>td.textContent.trim()));
+
+    doc.text('Reporte Diario – SENASA', 40, 40);
+    doc.autoTable({
+      head, body, startY: 60,
+      styles:{ fontSize:6, cellPadding:2 },
+      headStyles:{ fillColor:[13,45,98], textColor:255 }
+    });
+    doc.save('reporte_diario.pdf');
+  }
+
+  function exportDailyToJPG(){
+    const container = document.createElement('div');
+    container.style.background = 'white';
+    container.style.padding = '1rem';
+    container.style.borderRadius = '12px';
+
+    const logoHeader = document.createElement('div');
+    logoHeader.style.display = 'flex';
+    logoHeader.style.alignItems = 'center';
+    logoHeader.style.gap = '1rem';
+    logoHeader.style.paddingBottom = '1rem';
+    logoHeader.style.borderBottom = '2px solid #0d2d62';
+    logoHeader.style.marginBottom = '1rem';
+
+    const logoImg = document.createElement('img');
+    logoImg.src = 'https://www.gob.pe/rails/active_storage/representations/redirect/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1MDAsInB1ciI6ImJsb2JfaWQifX0=--d56e8d89845af7a460ccbe0d65ed319826301586/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJwbmciLCJyZXNpemVfdG9fbGltaXQiOltudWxsLDQ4XX0sInB1ciI6InZhcmlhdGlvbiJ9fQ==--830247c4bafe7cadca50817d8559bf1a09e3aa28/Sin%20ti%CC%81tulo-1-01%20(1).png';
+    logoImg.style.height = '40px';
+    logoImg.style.width = 'auto';
+    logoImg.style.backgroundColor = 'white';
+
+    const title = document.createElement('h2');
+    title.textContent = 'Reporte Diario GLPI – SENASA';
+    title.style.color = '#0d2d62';
+    title.style.fontSize = '18px';
+    title.style.fontWeight = 'bold';
+    title.style.margin = '0';
+
+    logoHeader.appendChild(logoImg);
+    logoHeader.appendChild(title);
+    container.appendChild(logoHeader);
+
+    const table = document.getElementById('dailyTable').cloneNode(true);
+    container.appendChild(table);
+
+    document.body.appendChild(container);
+
+    html2canvas(container, { scale: 2, backgroundColor:'#ffffff', logging: false, useCORS: true, allowTaint: true }).then(canvas=>{
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/jpeg', 1.0);
+      a.download = 'reporte_diario.jpg';
+      a.click();
+      document.body.removeChild(container);
+    }).catch(err=>{
+      console.error(err);
+      document.body.removeChild(container);
+    });
   }
 </script>
 </body>

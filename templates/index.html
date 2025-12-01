@@ -435,7 +435,7 @@
   }
 
   // ==========================================
-  // LÓGICA REPORTE DIARIO (3 NIVELES HEADER)
+  // LÓGICA REPORTE DIARIO (3 NIVELES HEADER) - CORREGIDA
   // ==========================================
   async function openDailyReportModal(){
     show('#overlay');
@@ -506,12 +506,14 @@
 
     aniosOrdenados.forEach(anio => {
         const meses = hierarchy[anio];
+        // Ordenamos los meses por calendario, no alfabéticamente
         const mesesDelAnio = Object.keys(meses).sort((a,b) => (mesesOrder[a.toLowerCase()]||99) - (mesesOrder[b.toLowerCase()]||99));
         
         let colspanAnio = 0;
 
         mesesDelAnio.forEach(mes => {
-            const dias = Array.from(meses[anio][mes]).sort((a,b) => parseInt(a) - parseInt(b));
+            // CORRECCION APLICADA: Usamos 'meses[mes]' directamente porque 'meses' ya es el objeto del año actual
+            const dias = Array.from(meses[mes]).sort((a,b) => parseInt(a) - parseInt(b));
             
             // Header MES
             const thMes = document.createElement('th');

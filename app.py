@@ -197,9 +197,9 @@ class GLPIAnalyzer:
     def technician_daily_stats(self):
         """Retorna estadísticas de tickets por técnico por día"""
         if self.df.empty: return []
-        # Crear columna de fecha en formato día
+        # Crear columna de fecha en formato día (solo número)
         df_copy = self.df.copy()
-        df_copy['fecha_dia'] = df_copy['fecha'].dt.strftime('%Y-%m-%d')
+        df_copy['fecha_dia'] = df_copy['fecha'].dt.day.astype(str)
 
         # Agrupar por técnico y día
         g = df_copy.groupby(['tecnico','fecha_dia'])['id'].count().reset_index()
@@ -208,7 +208,8 @@ class GLPIAnalyzer:
         result = []
         for tech in p.index:
             row = {'Técnico': str(tech)}
-            for day in sorted(p.columns):
+            # Ordenar las columnas numéricamente
+            for day in sorted(p.columns, key=lambda x: int(x)):
                 row[day] = int(p.loc[tech, day])
             result.append(row)
         return result

@@ -195,25 +195,39 @@ class GLPIAnalyzer:
         return result
 
     def technician_daily_stats(self):
-        """Retorna estadísticas de tickets por técnico por día"""
+        """Retorna estadísticas de tickets por técnico por día agrupados por año-mes"""
         if self.df.empty: return []
-        # Crear columna de fecha en formato día (solo número)
+        
         df_copy = self.df.copy()
-        df_copy['fecha_dia'] = df_copy['fecha'].dt.day.astype(str)
-
-        # Agrupar por técnico y día
-        g = df_copy.groupby(['tecnico','fecha_dia'])['id'].count().reset_index()
-        p = g.pivot_table(index='tecnico', columns='fecha_dia', values='id', fill_value=0)
-
+        df_copy['anio'] = df_copy['fecha'].dt.year
+        df_copy['mes'] = df_copy['fecha'].dt.month
+        df_copy['mes_nombre'] = df_copy['mes'].map(MESES_ES)
+        df_copy['dia'] = df_copy['fecha'].dt.day
+        df_copy['anio_mes'] = df_copy['anio'].astype(str) + '-' + df_copy['mes_nombre']
+        df_copy['anio_mes_dia'] = df_copy['anio_mes'] + '-' + df_copy['dia'].astype(str)
+        
+        # Agrupar por técnico y año-mes-día
+        g = df_copy.groupby(['tecnico', 'anio_mes', 'dia'])['id'].count().reset_index()
+        
+        # Crear estructura jerárquica
         result = []
-        for tech in p.index:
+        tecnicos = g['tecnico'].unique()
+        
+        for tech in tecnicos:
+            tech_data = g[g['tecnico'] == tech]
             row = {'Técnico': str(tech)}
-            # Ordenar las columnas numéricamente
-            for day in sorted(p.columns, key=lambda x: int(x)):
-                row[day] = int(p.loc[tech, day])
+            
+            # Agrupar por año-mes
+            for anio_mes in sorted(tech_data['anio_mes'].unique()):
+                mes_data = tech_data[tech_data['anio_mes'] == anio_mes]
+                for _, row_data in mes_data.iterrows():
+                    dia = str(int(row_data['dia']))
+                    col_name = f"{anio_mes}|{dia}"
+                    row[col_name] = int(row_data['id'])
+            
             result.append(row)
+        
         return result
-
     def filter_tickets(self, ftype: str, fvalue: str):
         if self.df.empty: return []
         df = self.df.copy()

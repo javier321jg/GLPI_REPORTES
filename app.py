@@ -147,7 +147,7 @@ class GLPIAnalyzer:
         if self.df.empty: return
         self.df['estado']    = self.df['estado'].fillna('Sin Estado')
         self.df['prioridad'] = self.df['prioridad'].fillna('Normal')
-        self.df['tecnico']   = self.df['tecnico'].fillna('Sin Asignar')
+        self.df['tecnico']   = self.df['tecnico'].fillna('Desarrollo o Mesa de Ayuda')
         self.df['categoria'] = self.df['categoria'].fillna('Sin Categoría')
         self.df['id']        = pd.to_numeric(self.df['id'], errors='coerce').fillna(0).astype(int)
 
